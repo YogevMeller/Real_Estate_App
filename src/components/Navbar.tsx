@@ -24,11 +24,11 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100">
+    <nav dir="ltr" className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100">
       {/*
-        RTL layout: Logo = far RIGHT (flex-start in RTL)
-                    Avatar = far LEFT (flex-end in RTL, last item in nav div)
-        No dir override — inherits RTL from page wrapper naturally.
+        dir="ltr" on <nav> isolates it from any parent dir="rtl".
+        order-last on Logo → rightmost in LTR flex.
+        order-first on nav-links → leftmost in LTR flex.
       */}
       <div className="max-w-full px-8 h-16 flex items-center justify-between">
 

@@ -1,8 +1,13 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/profile/settings/page": "app/profile/settings/page.js",
+  "/onboarding/page": "app/onboarding/page.js",
+  "/matches/page": "app/matches/page.js",
   "/page": "app/page.js",
-  "/profile/page": "app/profile/page.js",
+  "/profile/settings/page": "app/profile/settings/page.js",
+  "/auth/page": "app/auth/page.js",
   "/sell/page": "app/sell/page.js",
-  "/onboarding/page": "app/onboarding/page.js"
+  "/profile/preferences/page": "app/profile/preferences/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/property/[id]/page": "app/property/[id]/page.js",
+  "/search/page": "app/search/page.js"
 }
