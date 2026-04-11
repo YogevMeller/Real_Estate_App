@@ -14,6 +14,14 @@ body {
   color: #1E2D4E;
 }
 
+/* ── RTL LAYOUT CONTRACT ──────────────────────────────────────────────────────
+   dir="rtl" is set ONCE on <html> in layout.tsx. All pages inherit it.
+   DO NOT add dir="rtl" to individual page or component root wrappers.
+
+   Opt-out of RTL for a specific element: add dir="ltr" on that element.
+   The Navbar's <nav dir="ltr"> is the reference implementation.
+   ─────────────────────────────────────────────────────────────────────────── */
+
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;

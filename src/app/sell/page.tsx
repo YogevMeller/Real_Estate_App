@@ -26,7 +26,7 @@ const STEPS = [
 
 export default function SellPage() {
   return (
-    <div className="min-h-screen bg-cream" dir="rtl">
+    <div className="min-h-screen bg-cream">
       <Navbar />
 
       {/* Hero */}

@@ -11,7 +11,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("register");
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-4 py-12" dir="rtl">
+    <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2.5 mb-8 group">
         <div className="w-10 h-10 bg-amber rounded-xl flex items-center justify-center shadow group-hover:scale-105 transition-transform">

@@ -36,7 +36,7 @@ export default function MatchesPage() {
   })).sort((a, b) => b.meta.score - a.meta.score);
 
   return (
-    <div className="min-h-screen bg-cream" dir="rtl">
+    <div className="min-h-screen bg-cream">
       <Navbar />
 
       <div className="max-w-5xl mx-auto px-6 pt-8 pb-20">

@@ -117,7 +117,7 @@ export default function PropertyPage({ params }: { params: { id: string } }) {
   const hasDrywall = property.floorPlan.drywallPoints.length > 0;
 
   return (
-    <div className="min-h-screen bg-cream" dir="rtl">
+    <div className="min-h-screen bg-cream">
       <Navbar />
 
       {/* Breadcrumb */}

@@ -26,7 +26,7 @@ export default function SearchPage() {
   const formatPrice = (p: number) => `₪${(p / 1000000).toFixed(1)}M`;
 
   return (
-    <div className="min-h-screen bg-cream" dir="rtl">
+    <div className="min-h-screen bg-cream">
       <Navbar />
 
       {/* Search bar - sticky */}

@@ -8,9 +8,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // dir="rtl" removed from html — each page handles dir on its own content containers
-    // This prevents RTL from reversing flex-row layouts globally
-    <html lang="he">
+    // ─── RTL ARCHITECTURE — READ BEFORE TOUCHING ─────────────────────────────
+    // dir="rtl" lives HERE and ONLY here. Every page inherits it automatically.
+    //
+    // RULES:
+    // 1. NEVER add dir="rtl" to individual page wrappers — it is already global.
+    // 2. For LTR components (Navbar, etc.) add dir="ltr" on that element only.
+    //    The Navbar's <nav dir="ltr"> is the canonical example.
+    // 3. Flex in RTL: items flow RIGHT→LEFT (first child = rightmost).
+    //    • Sidebar-on-right layout: plain flex + sidebar FIRST in DOM ✓
+    //    • Image-left card: flex + dir="ltr"  OR  flex-row-reverse
+    //      (RTL + row-reverse = double-reversal = visual LTR order)
+    // 4. CSS physical props (left/right, top/bottom) are unaffected by dir.
+    // ─────────────────────────────────────────────────────────────────────────
+    <html lang="he" dir="rtl">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

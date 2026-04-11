@@ -76,7 +76,7 @@ export default function PreferencesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-cream" dir="rtl">
+    <div className="min-h-screen bg-cream">
       {/* Top nav */}
       <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
         <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center gap-3">

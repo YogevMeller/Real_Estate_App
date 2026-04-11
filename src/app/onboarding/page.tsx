@@ -164,7 +164,7 @@ export default function OnboardingPage() {
   const totalTags = selectedTags.length + mustFeatures.length + (familyStatus === "family" || planningKids ? 2 : 0);
 
   return (
-    <div className="min-h-screen bg-cream" dir="rtl">
+    <div className="min-h-screen bg-cream">
       <Navbar />
       <div className="max-w-2xl mx-auto px-6 pt-8 pb-20">
 
