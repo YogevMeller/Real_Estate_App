@@ -45,16 +45,19 @@ export default function Navbar() {
 
           {/* User avatar / auth — leftmost item */}
           {IS_LOGGED_IN ? (
-            <div className="relative" ref={menuRef}>
+            <div className="relative flex items-center gap-1" ref={menuRef}>
+              {/* Chevron — toggles dropdown */}
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                className="p-1 hover:opacity-70 transition-opacity"
               >
                 <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
-                <div className="w-9 h-9 bg-gradient-to-br from-amber to-yellow-400 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                  {MOCK_USER.initials}
-                </div>
               </button>
+              {/* Avatar — direct link to profile */}
+              <Link href="/profile" onClick={() => setMenuOpen(false)}
+                className="w-9 h-9 bg-gradient-to-br from-amber to-yellow-400 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm hover:opacity-80 transition-opacity">
+                {MOCK_USER.initials}
+              </Link>
 
               {menuOpen && (
                 <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50" dir="rtl">
