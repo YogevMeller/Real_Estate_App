@@ -1,0 +1,492 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENTA — Mock Data
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+export interface NeighborhoodItem {
+  name: string;
+  distance: string;
+  walkMin: number;
+  type: string;
+  rating?: number;
+  note?: string;
+  future?: boolean;
+}
+
+export interface Property {
+  id: string;
+  address: string;
+  city: string;
+  rooms: number;
+  sqm: number;
+  floor: number;
+  totalFloors: number;
+  price: number;
+  yearBuilt: number;
+  parking: string;
+  hoa: number;
+  ac: string;
+  hotWater: string;
+  elevator: boolean;
+  balcony: boolean;
+  storage: boolean;
+  description: string;
+  seller: { name: string; responseTime: string; verified: boolean; initials: string };
+  structural: {
+    kitchenWall: string;
+    ceilingHeight: number;
+    windows: number;
+    naturalLight: string;
+    facing: string;
+  };
+  neighborhood: {
+    education: NeighborhoodItem[];
+    health: NeighborhoodItem[];
+    transit: NeighborhoodItem[];
+    shopping: NeighborhoodItem[];
+    parks: NeighborhoodItem[];
+    community: NeighborhoodItem[];
+  };
+  priceHistory: { date: string; price: number }[];
+  buildingTransactions: { date: string; floor: string; sqm: number; price: number }[];
+  scanDate: string;
+  photos: string[];
+  floorPlan: {
+    rooms: { id: string; name: string; sqm: number; x: number; y: number; width: number; height: number }[];
+    drywallPoints: { x: number; y: number; label: string }[];
+    totalSqm: number;
+    width: number;
+    height: number;
+  };
+}
+
+// ── Match overlay (per-buyer, per-property) ──────────────────────────────────
+export interface MatchMeta {
+  propertyId: string;
+  score: number;           // 0–100
+  aiSummary: string;       // one-liner why it matched
+  matchTags: string[];     // specific reasons
+  status: "new" | "scheduled" | "visited" | "not_interested";
+  scheduledDate?: string;
+  visitedDate?: string;
+}
+
+// ── Review left by another visitor ──────────────────────────────────────────
+export interface Review {
+  id: string;
+  propertyId: string;
+  reviewer: { name: string; initials: string; bg: string };
+  visitDate: string;
+  matchScore: number;    // buyer's match score at time of visit
+  rating: number;        // 1–5
+  tags: string[];
+  text: string;
+  helpful: number;
+  verified: boolean;
+}
+
+// ── Buyer profile ────────────────────────────────────────────────────────────
+export interface BuyerProfile {
+  name: string;
+  budget: { min: number; max: number };
+  rooms: number;
+  cities: string[];
+  neighborhoods: string[];
+  semanticTags: string[];
+  freeText: string;
+  hasKids: boolean;
+  purpose: "primary" | "investment";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOCK BUYER PROFILE
+// ─────────────────────────────────────────────────────────────────────────────
+export const mockBuyerProfile: BuyerProfile = {
+  name: "עדי ורועי",
+  budget: { min: 2500000, max: 3500000 },
+  rooms: 4,
+  cities: ["תל אביב", "רמת גן"],
+  neighborhoods: ["ארלוזורוב", "לב תל אביב", "פלורנטין"],
+  semanticTags: ["ידידותי לעגלות", "רחוב שקט", "פוטנציאל מטבח פתוח", "ליד גן ילדים", "תקרה גבוהה", "חניה"],
+  freeText: "אנחנו זוג עם תינוק בן שנה ומחפשים שכונה שקטה עם גן קרוב. חשוב לנו מרחב לגדול בו.",
+  hasKids: true,
+  purpose: "primary",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MATCH META (per buyer)
+// ─────────────────────────────────────────────────────────────────────────────
+export const matchMeta: MatchMeta[] = [
+  {
+    propertyId: "arlozorov-45",
+    score: 94,
+    aiSummary: "תואם את הדרישה לרחוב שקט, גן ילדים במרחק 1 דקה, ופוטנציאל מטבח פתוח.",
+    matchTags: ["רחוב שקט ✓", "גן ילדים 1 דק׳ ✓", "פוטנציאל מטבח פתוח ✓", "תקרה גבוהה ✓", "חניה מקורה ✓", "בתוך התקציב ✓"],
+    status: "new",
+  },
+  {
+    propertyId: "dizengoff-78",
+    score: 81,
+    aiSummary: "שכונה מצוינת עם גן שעשועים קרוב, אך אין חניה ואין מעלית.",
+    matchTags: ["כיכר דיזנגוף קרובה ✓", "שופץ 2019 ✓", "בתוך התקציב ✓", "אין חניה ✗", "אין מעלית ✗"],
+    status: "scheduled",
+    scheduledDate: "שני, 14 באפריל 2026, 19:00",
+  },
+  {
+    propertyId: "rothschild-120",
+    score: 67,
+    aiSummary: "נכס יוקרתי, אך מחיר מעל התקציב ב-₪1M. מוצג כהשוואה.",
+    matchTags: ["תקרות 3.5מ׳ ✓", "שדרות רוטשילד ✓", "מעל התקציב ✗", "ועד בית גבוה ✗"],
+    status: "not_interested",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────────────────────────────────────────────
+export const reviews: Review[] = [
+  {
+    id: "r1",
+    propertyId: "arlozorov-45",
+    reviewer: { name: "מיה ודניאל", initials: "מד", bg: "bg-purple-100 text-purple-600" },
+    visitDate: "5 באפריל 2026",
+    matchScore: 89,
+    rating: 5,
+    tags: ["אור טבעי מעולה", "שכנים נחמדים", "שקט מהרחוב", "גן ילדים ממש קרוב"],
+    text: "ביקרנו ביום ראשון בבוקר — השמש פורצת מהחלונות הדרומיים. הסלון גדול ומרווח, ואכן הקיר בין המטבח לסלון דק מאוד. השכנים הציצו ואמרו שלום, תחושה של קהילה. הגן ממש מתחת לבניין.",
+    helpful: 12,
+    verified: true,
+  },
+  {
+    id: "r2",
+    propertyId: "arlozorov-45",
+    reviewer: { name: "תמר כ.", initials: "ת", bg: "bg-blue-100 text-blue-600" },
+    visitDate: "2 באפריל 2026",
+    matchScore: 76,
+    rating: 4,
+    tags: ["גדול מהציפיות", "מטבח ישן קצת", "מרפסת קטנה"],
+    text: "הדירה גדולה מהתמונות — בכיף. המטבח עצמו ישן אבל הבסיס טוב, ועם פתיחת הקיר זה יהיה מרחב מדהים. המרפסת קטנה יותר ממה שציפיתי אבל נעימה. חניה נוחה מאוד.",
+    helpful: 8,
+    verified: true,
+  },
+  {
+    id: "r3",
+    propertyId: "arlozorov-45",
+    reviewer: { name: "אורי מ.", initials: "א", bg: "bg-green-100 text-green-600" },
+    visitDate: "29 במרץ 2026",
+    matchScore: 71,
+    rating: 3,
+    tags: ["רעש רחוב בשעות שיא", "שיפוץ נדרש במטבח", "קומה נמוכה מעט"],
+    text: "שימו לב — בין 7–9 בבוקר יש רחש מהרחוב הראשי כי הדלת הקדמית פונה לארלוזורוב. עצמות הדירה מעולות אבל המטבח ידרוש השקעה. אנחנו הלכנו על אחת אחרת.",
+    helpful: 15,
+    verified: true,
+  },
+  {
+    id: "r4",
+    propertyId: "arlozorov-45",
+    reviewer: { name: "נועה ש.", initials: "נ", bg: "bg-amber-100 text-amber-600" },
+    visitDate: "25 במרץ 2026",
+    matchScore: 88,
+    rating: 5,
+    tags: ["ירון מוכר נחמד מאוד", "שקוף לגמרי", "הכל תואם לסוכן"],
+    text: "ירון המוכר היה פתוח וכן לגמרי. כל מה שסוכן ה-AI ענה עליו היה מדויק — לא הופתענו בשום דבר. המרפסת פונה לגן והנוף שקט להפליא. אם התקציב שלנו היה קצת גבוה יותר — היינו קונים.",
+    helpful: 21,
+    verified: true,
+  },
+  {
+    id: "r5",
+    propertyId: "dizengoff-78",
+    reviewer: { name: "גל וליאת", initials: "גל", bg: "bg-teal-100 text-teal-600" },
+    visitDate: "8 באפריל 2026",
+    matchScore: 81,
+    rating: 4,
+    tags: ["דיזנגוף רועש בלילה", "שיפוץ יפה מאוד", "אין מעלית — שימו לב"],
+    text: "הדירה שופצה בטעם טוב, כל הפרטים הקטנים. אבל בלילי שישי דיזנגוף רועשת — אם אתם רגישים לרעש זה רלוונטי. הנתיב ללא מעלית הוא קומה שנייה, לא נורא, אבל עם עגלה זה מאתגר.",
+    helpful: 9,
+    verified: true,
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROPERTIES
+// ─────────────────────────────────────────────────────────────────────────────
+export const properties: Property[] = [
+  {
+    id: "arlozorov-45",
+    address: "רחוב ארלוזורוב 45",
+    city: "תל אביב",
+    rooms: 4,
+    sqm: 87,
+    floor: 3,
+    totalFloors: 5,
+    price: 3200000,
+    yearBuilt: 2015,
+    parking: "חניה מקורה מס׳ 14 (ליד המעלית)",
+    hoa: 250,
+    ac: "מזגן מרכזי תדיראן (2021)",
+    hotWater: "דוד שמש + גיבוי חשמלי",
+    elevator: true,
+    balcony: true,
+    storage: true,
+    description:
+      "דירת 4 חדרים מודרנית ומרווחת, נבנתה ב-2015 עם תקרות גבוהות ואור טבעי מרהיב. קיר המטבח עשוי גבס ולא נושא עומסים — ניתן להרסו ליצירת מרחב מטבח-סלון פתוח. הדירה פונה לחצר ירוקה ושקטה, הרחק מהרחש של ארלוזורוב. מרחק הליכה של 2 דקות מתחנת הרכבת.",
+    seller: { name: "ירון", responseTime: "מגיב תוך 2 שעות", verified: true, initials: "י" },
+    structural: {
+      kitchenWall: "נשלף (גבס) — ניתן להריסה",
+      ceilingHeight: 3.2,
+      windows: 6,
+      naturalLight: "מעולה (פונה דרומה)",
+      facing: "חצר ציבורית שקטה",
+    },
+    neighborhood: {
+      education: [
+        { name: "גן ילדים העיריוני ארלוזורוב", distance: "80 מ׳", walkMin: 1, type: "kindergarten", rating: 4.8, note: "גן ממלכתי" },
+        { name: "גן ילדים קשת", distance: "150 מ׳", walkMin: 2, type: "kindergarten", note: "גן פרטי" },
+        { name: "בית ספר יסודי גורדון", distance: "320 מ׳", walkMin: 4, type: "school", rating: 4.7, note: "מדורג שלישון עליון ארצי" },
+        { name: "בית ספר יסודי בן גוריון", distance: "550 מ׳", walkMin: 7, type: "school", rating: 4.5 },
+        { name: "תיכון עירוני ד׳", distance: "650 מ׳", walkMin: 8, type: "highschool", rating: 4.6 },
+        { name: "אוניברסיטת תל אביב", distance: "3.2 ק״מ", walkMin: 40, type: "university", note: "5 דק׳ ברכבת" },
+      ],
+      health: [
+        { name: "מרפאת מכבי ארלוזורוב", distance: "120 מ׳", walkMin: 2, type: "clinic", note: "קופת חולים מכבי — כל ההתמחויות" },
+        { name: "רופא משפחה — ד״ר לוי", distance: "200 מ׳", walkMin: 3, type: "doctor", note: "קופת חולים כללית" },
+        { name: "בית מרקחת סופר-פארם", distance: "180 מ׳", walkMin: 2, type: "pharmacy" },
+        { name: "בית חולים איכילוב", distance: "1.2 ק״מ", walkMin: 15, type: "hospital", note: "חדר מיון 24/7" },
+        { name: "מרפאת שיניים ד״ר כהן", distance: "300 מ׳", walkMin: 4, type: "dental" },
+        { name: "מרכז לבריאות האישה", distance: "400 מ׳", walkMin: 5, type: "women", note: "גינקולוגיה, כושר לנשות הריון" },
+      ],
+      transit: [
+        { name: "תחנת רכבת ארלוזורוב (השלום)", distance: "160 מ׳", walkMin: 2, type: "train", note: "רכבת ישראל — ת״א, חיפה, ירושלים" },
+        { name: "הרכבת הקלה — תחנה עתידית", distance: "550 מ׳", walkMin: 7, type: "metro", future: true, note: "קו M1 — פתיחה 2027" },
+        { name: "אוטובוס קו 5", distance: "80 מ׳", walkMin: 1, type: "bus", note: "לדיזנגוף, אבן גבירול" },
+        { name: "אוטובוס קו 18", distance: "80 מ׳", walkMin: 1, type: "bus", note: "לרמת גן, בני ברק" },
+        { name: "תחנת תל-אופן", distance: "50 מ׳", walkMin: 1, type: "bike", note: "20 אופניים זמינים" },
+      ],
+      shopping: [
+        { name: "סופרמרקט רמי לוי", distance: "200 מ׳", walkMin: 2, type: "supermarket" },
+        { name: "מינימרקט 24/7", distance: "60 מ׳", walkMin: 1, type: "minimarket" },
+        { name: "דיזנגוף סנטר", distance: "700 מ׳", walkMin: 9, type: "mall", note: "200+ חנויות, קולנוע" },
+        { name: "שוק הכרמל", distance: "950 מ׳", walkMin: 12, type: "market" },
+        { name: "מסעדות ובתי קפה", distance: "ברחוב", walkMin: 0, type: "restaurants", note: "10+ מסעדות ברחוב ארלוזורוב" },
+      ],
+      parks: [
+        { name: "גן ציבורי — חצר האחורית", distance: "0 מ׳", walkMin: 0, type: "park", note: "נוף ישיר מהדירה" },
+        { name: "גן מאיר", distance: "400 מ׳", walkMin: 5, type: "park", note: "אידיאלי לכלבים וילדים" },
+        { name: "פארק הירקון", distance: "1.8 ק״מ", walkMin: 22, type: "park", note: "7 ק״מ שביל ריצה" },
+        { name: "חוף הים", distance: "2.3 ק״מ", walkMin: 28, type: "beach", note: "15 דק׳ הליכה / 5 דק׳ אופניים" },
+        { name: "גן שעשועים ציבורי", distance: "100 מ׳", walkMin: 1, type: "playground", note: "ממש ליד הבניין" },
+      ],
+      community: [
+        { name: "ספריה עירונית ארלוזורוב", distance: "250 מ׳", walkMin: 3, type: "library" },
+        { name: "מתנ״ס ארלוזורוב", distance: "450 מ׳", walkMin: 6, type: "community", note: "חוגי ילדים, כושר, בריכה" },
+        { name: "גן שעשועים ציבורי", distance: "100 מ׳", walkMin: 1, type: "playground" },
+        { name: "סטודיו כושר Anytime Fitness", distance: "180 מ׳", walkMin: 2, type: "gym", note: "פתוח 24/7" },
+        { name: "בריכה עירונית גורדון", distance: "1.2 ק״מ", walkMin: 15, type: "pool", note: "חוגי שחייה לילדים" },
+      ],
+    },
+    priceHistory: [
+      { date: "ינו׳ 2022", price: 2600000 },
+      { date: "יוני 2022", price: 2750000 },
+      { date: "ינו׳ 2023", price: 2900000 },
+      { date: "יוני 2023", price: 3000000 },
+      { date: "ינו׳ 2024", price: 3100000 },
+      { date: "יוני 2024", price: 3150000 },
+      { date: "ינו׳ 2025", price: 3200000 },
+    ],
+    buildingTransactions: [
+      { date: "מרץ 2024", floor: "קומה 4", sqm: 90, price: 3400000 },
+      { date: "נוב׳ 2023", floor: "קומה 2", sqm: 85, price: 3050000 },
+      { date: "יולי 2023", floor: "קומה 5", sqm: 92, price: 3550000 },
+      { date: "פבר׳ 2023", floor: "קומה 1", sqm: 82, price: 2850000 },
+    ],
+    scanDate: "3 באפריל 2026",
+    photos: ["/apartment.jpg", "/lidar.jpg"],
+    floorPlan: {
+      totalSqm: 87,
+      width: 580,
+      height: 420,
+      rooms: [
+        { id: "living", name: "סלון", sqm: 32, x: 0, y: 0, width: 310, height: 260 },
+        { id: "kitchen", name: "מטבח", sqm: 15, x: 310, y: 0, width: 270, height: 145 },
+        { id: "bedroom1", name: "חדר שינה 1", sqm: 18, x: 310, y: 145, width: 270, height: 275 },
+        { id: "bedroom2", name: "חדר שינה 2", sqm: 12, x: 0, y: 260, width: 165, height: 160 },
+        { id: "bathroom", name: "חדר רחצה", sqm: 10, x: 165, y: 260, width: 145, height: 160 },
+      ],
+      drywallPoints: [
+        { x: 310, y: 80, label: "קיר גבס — ניתן להריסה" },
+        { x: 310, y: 195, label: "קיר גבס — ניתן להריסה" },
+      ],
+    },
+  },
+  {
+    id: "dizengoff-78",
+    address: "רחוב דיזנגוף 78",
+    city: "תל אביב",
+    rooms: 3,
+    sqm: 75,
+    floor: 2,
+    totalFloors: 4,
+    price: 2800000,
+    yearBuilt: 1998,
+    parking: "חניה ברחוב בלבד",
+    hoa: 180,
+    ac: "מזגנים עמודיים ×3",
+    hotWater: "דוד חשמלי",
+    elevator: false,
+    balcony: false,
+    storage: true,
+    description: "דירת 3 חדרים מקסימה ברחוב דיזנגוף האייקוני. שופצה ב-2019 עם מטבח ושירותים חדשים. צעדים מבתי קפה, גלריות וכיכר דיזנגוף התוססת.",
+    seller: { name: "אבי", responseTime: "מגיב תוך שעה", verified: true, initials: "א" },
+    structural: { kitchenWall: "נשלף (גבס) — ניתן להריסה", ceilingHeight: 2.9, windows: 5, naturalLight: "טוב (פונה צפונה)", facing: "רחוב דיזנגוף" },
+    neighborhood: {
+      education: [
+        { name: "גן ילדים כיכר דיזנגוף", distance: "200 מ׳", walkMin: 3, type: "kindergarten" },
+        { name: "בית ספר ביאליק", distance: "400 מ׳", walkMin: 5, type: "school", rating: 4.4 },
+      ],
+      health: [
+        { name: "קופת חולים מאוחדת דיזנגוף", distance: "250 מ׳", walkMin: 3, type: "clinic" },
+        { name: "בית מרקחת", distance: "100 מ׳", walkMin: 1, type: "pharmacy" },
+      ],
+      transit: [{ name: "תחנת אוטובוס דיזנגוף סנטר", distance: "150 מ׳", walkMin: 2, type: "bus" }],
+      shopping: [
+        { name: "דיזנגוף סנטר", distance: "550 מ׳", walkMin: 7, type: "mall" },
+        { name: "שוק טיב טעם", distance: "300 מ׳", walkMin: 4, type: "supermarket" },
+      ],
+      parks: [{ name: "כיכר דיזנגוף", distance: "250 מ׳", walkMin: 3, type: "park" }],
+      community: [{ name: "ספריה עירונית", distance: "500 מ׳", walkMin: 6, type: "library" }],
+    },
+    priceHistory: [
+      { date: "ינו׳ 2022", price: 2300000 }, { date: "יוני 2022", price: 2450000 },
+      { date: "ינו׳ 2023", price: 2550000 }, { date: "יוני 2023", price: 2650000 },
+      { date: "ינו׳ 2024", price: 2720000 }, { date: "יוני 2024", price: 2760000 },
+      { date: "ינו׳ 2025", price: 2800000 },
+    ],
+    buildingTransactions: [],
+    scanDate: "1 באפריל 2026",
+    photos: ["/apartment.jpg", "/lidar.jpg"],
+    floorPlan: {
+      totalSqm: 75, width: 580, height: 420,
+      rooms: [
+        { id: "living", name: "סלון", sqm: 28, x: 0, y: 0, width: 300, height: 240 },
+        { id: "kitchen", name: "מטבח", sqm: 14, x: 300, y: 0, width: 280, height: 130 },
+        { id: "bedroom1", name: "חדר שינה 1", sqm: 16, x: 300, y: 130, width: 280, height: 170 },
+        { id: "bedroom2", name: "חדר שינה 2", sqm: 17, x: 0, y: 240, width: 300, height: 180 },
+      ],
+      drywallPoints: [{ x: 300, y: 65, label: "קיר גבס — ניתן להריסה" }],
+    },
+  },
+  {
+    id: "rothschild-120",
+    address: "שדרות רוטשילד 120",
+    city: "תל אביב",
+    rooms: 5,
+    sqm: 120,
+    floor: 6,
+    totalFloors: 8,
+    price: 4500000,
+    yearBuilt: 2008,
+    parking: "2 חניות תת-קרקעיות",
+    hoa: 450,
+    ac: "מערכת מולטי-ספליט",
+    hotWater: "דוד חשמלי (2022)",
+    elevator: true,
+    balcony: true,
+    storage: false,
+    description: "דירת יוקרה בשדרות רוטשילד עם נוף עצים מרהיב. תקרות גבוהות, ריצפת פרקט ומרפסת עוטפת.",
+    seller: { name: "מיכל", responseTime: "מגיבה תוך 4 שעות", verified: true, initials: "מ" },
+    structural: { kitchenWall: "נושא עומסים (בטון)", ceilingHeight: 3.5, windows: 9, naturalLight: "יוצא מן הכלל", facing: "שדרות רוטשילד" },
+    neighborhood: {
+      education: [
+        { name: "גן ילדים העיריוני", distance: "100 מ׳", walkMin: 1, type: "kindergarten" },
+        { name: "בית ספר אחד העם", distance: "480 מ׳", walkMin: 6, type: "school", rating: 4.5 },
+      ],
+      health: [
+        { name: "מרפאת מכבי שרונה", distance: "300 מ׳", walkMin: 4, type: "clinic" },
+        { name: "בית חולים איכילוב", distance: "2 ק״מ", walkMin: 25, type: "hospital" },
+      ],
+      transit: [
+        { name: "כיכר הבימה — אוטובוסים", distance: "250 מ׳", walkMin: 3, type: "bus" },
+        { name: "רכבת קלה — תחנת רוטשילד", distance: "400 מ׳", walkMin: 5, type: "metro", future: true },
+      ],
+      shopping: [
+        { name: "שוק שרונה", distance: "800 מ׳", walkMin: 10, type: "market" },
+        { name: "מסעדות רוטשילד", distance: "ברחוב", walkMin: 0, type: "restaurants" },
+      ],
+      parks: [
+        { name: "שדרות רוטשילד", distance: "בפתח הבית", walkMin: 0, type: "park" },
+        { name: "גן שרונה", distance: "900 מ׳", walkMin: 11, type: "park" },
+      ],
+      community: [
+        { name: "תיאטרון הבימה", distance: "300 מ׳", walkMin: 4, type: "culture" },
+        { name: "פילהרמונית", distance: "350 מ׳", walkMin: 4, type: "culture" },
+      ],
+    },
+    priceHistory: [
+      { date: "ינו׳ 2022", price: 3800000 }, { date: "יוני 2022", price: 4000000 },
+      { date: "ינו׳ 2023", price: 4150000 }, { date: "יוני 2023", price: 4300000 },
+      { date: "ינו׳ 2024", price: 4400000 }, { date: "יוני 2024", price: 4450000 },
+      { date: "ינו׳ 2025", price: 4500000 },
+    ],
+    buildingTransactions: [],
+    scanDate: "28 במרץ 2026",
+    photos: ["/apartment.jpg", "/lidar.jpg"],
+    floorPlan: {
+      totalSqm: 120, width: 580, height: 420,
+      rooms: [
+        { id: "living", name: "סלון", sqm: 40, x: 0, y: 0, width: 330, height: 270 },
+        { id: "kitchen", name: "מטבח", sqm: 20, x: 330, y: 0, width: 250, height: 160 },
+        { id: "bedroom1", name: "חדר שינה ראשי", sqm: 22, x: 330, y: 160, width: 250, height: 165 },
+        { id: "bedroom2", name: "חדר שינה 2", sqm: 18, x: 0, y: 270, width: 200, height: 150 },
+        { id: "bedroom3", name: "חדר שינה 3", sqm: 20, x: 200, y: 270, width: 130, height: 150 },
+      ],
+      drywallPoints: [],
+    },
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT RESPONSES
+// ─────────────────────────────────────────────────────────────────────────────
+export const chatResponses: { keywords: string[]; response: string }[] = [
+  {
+    keywords: ["חניה", "parking", "חנייה", "רכב"],
+    response: "כן! יש חניה מקורה רשומה בטאבו (מקום מס׳ 14), ממוקמת ליד המעלית בקומת המרתף. לא כרוכה בעלות נוספת — כלולה בנכס.",
+  },
+  {
+    keywords: ["מטבח", "קיר", "פתוח", "גבס", "להרוס", "kitchen", "wall", "open"],
+    response: "שאלה מצוינת! הקיר בין המטבח לסלון עשוי גבס — אינו נושא עומסים. ניתן להרסו ליצירת מרחב פתוח בעלות של ₪15,000–25,000. תוספת שווי משוערת: כ-₪150,000. הדגשתי את הקיר בתוכנית הקומה למעלה.",
+  },
+  {
+    keywords: ["גן", "ילדים", "בית ספר", "חינוך", "school", "kids"],
+    response: "האזור מעולה למשפחות! גן ילדים עירוני ב-80 מ׳ (דקה הליכה!), גן פרטי נוסף ב-150 מ׳. בית ספר גורדון המצוין ב-320 מ׳ — מדורג שלישון עליון ארצי. גן שעשועים ציבורי ממש ליד הבניין.",
+  },
+  {
+    keywords: ["קופת חולים", "רופא", "מרפאה", "בריאות", "clinic"],
+    response: "מרפאת מכבי עם כל ההתמחויות ב-120 מ׳ (2 דקות הליכה!). בית מרקחת סופר-פארם ב-180 מ׳. בית חולים איכילוב עם חדר מיון ב-1.2 ק״מ.",
+  },
+  {
+    keywords: ["רעש", "שקט", "שכנים", "noise", "quiet"],
+    response: "הדירה פונה לחצר האחורית — אין רעש מרחוב ארלוזורוב. ביקורות של קונים שביקרו (ראה למטה) מאשרים שקט מוחלט בצד החצר. שכנים משפחות צעירות בעיקר.",
+  },
+  {
+    keywords: ["רכבת", "אוטובוס", "תחבורה", "מטרו", "metro", "train"],
+    response: "תחבורה ציבורית יוצאת דופן: תחנת רכבת השלום ב-160 מ׳ (2 דקות!), 3 קווי אוטובוס ב-80 מ׳, אופניים ציבוריים ב-50 מ׳. הרכבת הקלה מגיעה ב-2027 ל-7 דקות הליכה.",
+  },
+  {
+    keywords: ["ביקור", "לראות", "מתי", "זמין", "tour", "visit", "schedule"],
+    response: "ירון זמין בערבי שני (18:00–21:00) ובבוקרי שישי (9:00–13:00). לחץ על ״תיאום ביקור״ לבחירת שעה ישירה ביומן שלו.",
+  },
+  {
+    keywords: ["מחיר", "מו״מ", "הצעה", "שווי", "price", "offer"],
+    response: "מחיר הדרישה ₪3.2M. נתוני עסקאות בבניין: ₪3.05M–₪3.4M ב-18 חודשים האחרונים. מחיר למ״ר כאן ₪36,781 לעומת ממוצע רחוב ₪38,200 — קיים מרחב למשא ומתן.",
+  },
+  {
+    keywords: ["ועד", "דמי", "אחזקה", "hoa"],
+    response: "דמי ועד בית ₪250/חודש. כולל: ניקיון, גינון, תחזוקת מעלית, קרן רזרבה. אין חובות מיוחדים פתוחים.",
+  },
+  {
+    keywords: ["קניות", "סופר", "מרכול"],
+    response: "סופרמרקט רמי לוי ב-200 מ׳, מינימרקט 24/7 ב-60 מ׳, שוק הכרמל ב-12 דקות, דיזנגוף סנטר ב-9 דקות.",
+  },
+];
