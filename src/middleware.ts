@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Protected routes — redirect to /auth if not logged in
-  const protectedPrefixes = ["/profile", "/matches", "/onboarding"];
+  const protectedPrefixes = ["/profile", "/matches"];
   const isProtected = protectedPrefixes.some((p) =>
     request.nextUrl.pathname.startsWith(p)
   );
@@ -43,9 +43,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Already logged in — don't show /auth
+  // Skip middleware for auth callback (let it handle tokens)
+  if (request.nextUrl.pathname.startsWith("/auth/callback")) {
+    return supabaseResponse;
+  }
+
+  // Already logged in — don't show /auth, send to onboarding
   if (user && request.nextUrl.pathname === "/auth") {
-    return NextResponse.redirect(new URL("/matches", request.url));
+    return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 
   return supabaseResponse;

@@ -1,15 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Edit3, CheckCircle2, Save,
   MapPin, BedDouble, Wallet, Heart, RefreshCw, Brain,
-  ChevronDown, X, Plus,
+  ChevronDown, X, Plus, Loader2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { mockBuyerProfile } from "@/lib/mockData";
+import { createClient } from "@/lib/supabase/client";
 
-// ── Editable state seeded from mock profile ──────────────────────────────────
 type Prefs = {
   maxBudget: number;
   rooms: number;
@@ -19,21 +18,16 @@ type Prefs = {
   purpose: "primary" | "investment";
 };
 
-const INITIAL: Prefs = {
-  maxBudget: mockBuyerProfile.budget.max,
-  rooms: mockBuyerProfile.rooms,
-  cities: [...mockBuyerProfile.cities],
-  semanticTags: [...mockBuyerProfile.semanticTags],
-  freeText: mockBuyerProfile.freeText,
-  purpose: mockBuyerProfile.purpose,
+const EMPTY_PREFS: Prefs = {
+  maxBudget: 3500000,
+  rooms: 3,
+  cities: [],
+  semanticTags: [],
+  freeText: "",
+  purpose: "primary",
 };
 
-const ISRAEL_CITIES = [
-  "תל אביב", "ירושלים", "חיפה", "ראשון לציון", "פתח תקווה",
-  "אשדוד", "נתניה", "באר שבע", "חולון", "בני ברק",
-  "רמת גן", "גבעתיים", "הרצליה", "כפר סבא", "רעננה",
-  "מודיעין", "אשקלון", "רחובות", "בת ים", "הוד השרון",
-];
+import { ISRAEL_CITIES } from "@/lib/israelCities";
 
 const LIFESTYLE_TAGS = [
   "רחוב שקט", "ליד גן ילדים", "ידידותי לעגלות", "פוטנציאל מטבח פתוח",
@@ -43,12 +37,52 @@ const LIFESTYLE_TAGS = [
 ];
 
 export default function PreferencesPage() {
-  const [prefs, setPrefs] = useState<Prefs>(INITIAL);
+  const [prefs, setPrefs] = useState<Prefs>(EMPTY_PREFS);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [cityInput, setCityInput] = useState("");
   const [showCityDropdown, setShowCityDropdown] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const { data } = await supabase
+        .from("buyer_profiles").select("*").eq("user_id", user.id).single() as {
+          data: Record<string, unknown> | null; error: unknown;
+        };
+      if (data) {
+        setPrefs({
+          maxBudget: (data.budget_max as number) || 3500000,
+          rooms: (data.rooms_min as number) || 3,
+          cities: (data.cities as string[]) || [],
+          semanticTags: (data.semantic_tags as string[]) || [],
+          freeText: (data.free_text as string) || "",
+          purpose: (data.purpose as "primary" | "investment") || "primary",
+        });
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("buyer_profiles").upsert({
+        user_id: user.id,
+        budget_max: prefs.maxBudget,
+        rooms_min: prefs.rooms,
+        cities: prefs.cities,
+        semantic_tags: prefs.semanticTags,
+        free_text: prefs.freeText || null,
+        purpose: prefs.purpose,
+      } as never, { onConflict: "user_id" });
+    }
+    setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };

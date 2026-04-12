@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ChevronRight, User, Bell, Shield, CreditCard,
-  Save, CheckCircle2, Upload, X, Eye, EyeOff,
+  Save, CheckCircle2, Upload, X, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { createClient } from "@/lib/supabase/client";
 
 const SECTIONS = [
   { key: "personal", label: "מידע אישי", icon: User },
@@ -77,11 +78,57 @@ export default function SettingsPage() {
 // ── Personal ─────────────────────────────────────────────────────────────────
 function PersonalSection({ onSave, saved }: { onSave: () => void; saved: boolean }) {
   const [form, setForm] = useState({
-    firstName: "רועי", lastName: "כהן",
-    email: "roi@example.com", phone: "050-1234567",
+    firstName: "", lastName: "",
+    email: "", phone: "",
   });
+  const [initials, setInitials] = useState("?");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const { data: profile } = await supabase
+        .from("profiles").select("*").eq("id", user.id).single() as { data: Record<string, string | null> | null; error: unknown };
+      setForm({
+        firstName: (profile?.first_name as string) || "",
+        lastName: (profile?.last_name as string) || "",
+        email: user.email || "",
+        phone: (profile?.phone as string) || "",
+      });
+      const fn = (profile?.first_name as string) || "";
+      setInitials((fn[0] || user.email?.[0] || "?").toUpperCase());
+      setLoading(false);
+    })();
+  }, []);
+
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("profiles").update({
+        first_name: form.firstName,
+        last_name: form.lastName,
+        phone: form.phone,
+      } as never).eq("id", user.id);
+    }
+    setSaving(false);
+    onSave();
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 text-amber animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6">
@@ -95,7 +142,7 @@ function PersonalSection({ onSave, saved }: { onSave: () => void; saved: boolean
       {/* Avatar */}
       <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
         <div className="w-16 h-16 bg-gradient-to-br from-amber to-yellow-400 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow">
-          R
+          {initials}
         </div>
         <div>
           <button className="flex items-center gap-2 text-sm text-amber font-medium hover:text-amber/80 transition-colors">
@@ -114,7 +161,7 @@ function PersonalSection({ onSave, saved }: { onSave: () => void; saved: boolean
         <Field label="טלפון נייד" type="tel" value={form.phone} onChange={set("phone")} />
       </div>
 
-      <SaveButton onSave={onSave} saved={saved} />
+      <SaveButton onSave={handleSave} saved={saved} saving={saving} />
     </div>
   );
 }
@@ -335,16 +382,16 @@ function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
   );
 }
 
-function SaveButton({ onSave, saved, label = "שמור שינויים" }: {
-  onSave: () => void; saved: boolean; label?: string;
+function SaveButton({ onSave, saved, saving, label = "שמור שינויים" }: {
+  onSave: () => void; saved: boolean; saving?: boolean; label?: string;
 }) {
   return (
-    <button onClick={onSave}
-      className={`mt-6 flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm ${
+    <button onClick={onSave} disabled={saving}
+      className={`mt-6 flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm disabled:opacity-60 ${
         saved ? "bg-green-500 text-white" : "bg-amber text-white hover:bg-amber/90"
       }`}>
-      {saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-      {saved ? "נשמר!" : label}
+      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+      {saving ? "שומר..." : saved ? "נשמר!" : label}
     </button>
   );
 }

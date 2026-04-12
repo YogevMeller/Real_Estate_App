@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,52 +8,54 @@ import {
   Phone, Mail, Lock, User, CreditCard, Upload, X, AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Navbar from "@/components/Navbar";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("register");
+  const [postRegister, setPostRegister] = useState(false);
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-4 py-12">
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-2.5 mb-8 group">
-        <div className="w-10 h-10 bg-amber rounded-xl flex items-center justify-center shadow group-hover:scale-105 transition-transform">
-          <Home className="w-5 h-5 text-white" />
-        </div>
-        <span className="text-navy font-bold text-xl tracking-tight">Agenta</span>
-      </Link>
+    <div className="min-h-screen bg-cream flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
 
       <div className="bg-white rounded-3xl border border-gray-100 shadow-xl w-full max-w-md overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100">
-          {[
-            { key: "register", label: "הרשמה" },
-            { key: "login", label: "כניסה" },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setMode(t.key as "login" | "register")}
-              className={`flex-1 py-4 text-sm font-semibold transition-all border-b-2 -mb-px ${
-                mode === t.key
-                  ? "text-amber border-amber"
-                  : "text-gray-400 border-transparent hover:text-navy"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Tabs — hidden after registration */}
+        {!postRegister && (
+          <div className="flex border-b border-gray-100">
+            {[
+              { key: "register", label: "הרשמה" },
+              { key: "login", label: "כניסה" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setMode(t.key as "login" | "register")}
+                className={`flex-1 py-4 text-sm font-semibold transition-all border-b-2 -mb-px ${
+                  mode === t.key
+                    ? "text-amber border-amber"
+                    : "text-gray-400 border-transparent hover:text-navy"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="p-7">
           {mode === "register"
-            ? <RegisterForm />
+            ? <RegisterForm onPostRegister={() => setPostRegister(true)} />
             : <LoginForm onSwitchToRegister={() => setMode("register")} />
           }
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 mt-6 text-center max-w-xs leading-relaxed">
-        בהרשמה אתה מסכים ל<span className="text-amber cursor-pointer">תנאי השימוש</span> ו<span className="text-amber cursor-pointer">מדיניות הפרטיות</span> של Agenta
-      </p>
+      {!postRegister && (
+        <p className="text-xs text-gray-400 mt-6 text-center max-w-xs leading-relaxed">
+          בהרשמה אתה מסכים ל<span className="text-amber cursor-pointer">תנאי השימוש</span> ו<span className="text-amber cursor-pointer">מדיניות הפרטיות</span> של Agenta
+        </p>
+      )}
+      </div>
     </div>
   );
 }
@@ -89,11 +91,11 @@ function GoogleButton({ loading, onClick }: { loading: boolean; onClick: () => v
 }
 
 // ── Register Form ─────────────────────────────────────────────────────────────
-function RegisterForm() {
+function RegisterForm({ onPostRegister }: { onPostRegister: () => void }) {
   const router = useRouter();
   const supabase = createClient();
 
-  const [step, setStep] = useState<"details" | "id">("details");
+  const [step, setStep] = useState<"details" | "confirm_email" | "ready">("details");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,18 +132,25 @@ function RegisterForm() {
       if (signUpError) throw signUpError;
       if (!data.user) throw new Error("לא ניתן ליצור חשבון");
 
-      // Insert profile row
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: profileError } = await (supabase.from("profiles") as any).insert({
+      // Upsert profile row (trigger may have already created it)
+      const { error: profileError } = await supabase.from("profiles").upsert({
         id: data.user.id,
         first_name: form.firstName,
         last_name: form.lastName,
         phone: form.phone,
-      });
+      } as never, { onConflict: "id", ignoreDuplicates: false });
 
-      if (profileError && profileError.code !== "23505") throw profileError;
+      if (profileError) {
+        console.warn("Profile upsert warning:", profileError.message);
+      }
 
-      setStep("id");
+      // If email confirmation is required, session won't exist yet
+      onPostRegister();
+      if (data.session) {
+        setStep("ready");
+      } else {
+        setStep("confirm_email");
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "שגיאה בהרשמה";
       if (msg.includes("already registered") || msg.includes("already been registered")) {
@@ -178,68 +187,74 @@ function RegisterForm() {
     router.push("/onboarding");
   };
 
-  if (step === "id") {
+  // Poll for email confirmation
+  useEffect(() => {
+    if (step !== "confirm_email") return;
+    const interval = setInterval(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email_confirmed_at) {
+        clearInterval(interval);
+        setStep("ready");
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [step, supabase]);
+
+  if (step === "confirm_email") {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6 text-center">
+        <div className="w-16 h-16 bg-amber-light rounded-full flex items-center justify-center mx-auto">
+          <Mail className="w-8 h-8 text-amber" />
+        </div>
         <div>
-          <h2 className="text-xl font-bold text-navy">אימות זהות</h2>
-          <p className="text-gray-400 text-sm mt-1">כדי להגן על המוכרים, אנחנו מאמתים קונים ברציניות</p>
+          <h2 className="text-xl font-bold text-navy">בדוק את האימייל שלך</h2>
+          <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+            שלחנו קישור אימות ל-<span className="text-navy font-medium">{form.email}</span>
+            <br />לחץ על הקישור במייל כדי להפעיל את החשבון.
+          </p>
         </div>
 
-        {error && <ErrorBanner message={error} />}
-
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">מספר תעודת זהות</label>
-          <div className="relative">
-            <CreditCard className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text" maxLength={9} placeholder="9 ספרות"
-              value={form.idNumber} onChange={set("idNumber")}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 text-navy text-sm focus:outline-none focus:border-amber transition-colors text-right"
-            />
+        {/* Waiting animation */}
+        <div className="flex items-center justify-center gap-3 py-2">
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="w-2 h-2 rounded-full bg-amber animate-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
+            ))}
           </div>
-          <p className="text-xs text-gray-400 mt-1">נשמר מוצפן ולא נחשף למוכרים</p>
+          <span className="text-sm text-gray-400">ממתין לאימות...</span>
         </div>
 
-        <div className="border-2 border-dashed border-gray-200 rounded-2xl p-5 text-center hover:border-amber/40 transition-colors">
-          {idFile ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-navy">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                {idFile.name}
-              </div>
-              <button onClick={() => setIdFile(null)}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100">
-                <X className="w-3.5 h-3.5 text-gray-400" />
-              </button>
-            </div>
-          ) : (
-            <label className="cursor-pointer block">
-              <input type="file" accept="image/*" className="hidden"
-                onChange={(e) => e.target.files?.[0] && setIdFile(e.target.files[0])} />
-              <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm font-medium text-navy">צלם / העלה תמונת תעודת זהות</p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG עד 5MB</p>
-            </label>
-          )}
-        </div>
-
-        <div className="bg-amber-light rounded-2xl p-3 text-xs text-navy/70 leading-relaxed">
-          <span className="font-semibold text-navy">🔒 למה אנחנו מבקשים זאת?</span> פלטפורמת P2P ישירה — המוכרים פותחים את ביתם לבקרים. אימות זהות מגן על כולם.
+        <div className="bg-amber-light rounded-2xl p-4 text-xs text-navy/70 leading-relaxed">
+          לא קיבלת? בדוק בתיקיית הספאם. הקישור תקף ל-24 שעות.
         </div>
 
         <button
-          onClick={handleFinish}
-          disabled={loading}
-          className="w-full bg-amber text-white font-semibold py-3.5 rounded-2xl hover:bg-amber/90 transition-all shadow-md hover:scale-[1.01] disabled:opacity-60 disabled:scale-100">
-          {loading ? "שומר..." : "סיום הרשמה — המשך לפרופיל"}
+          onClick={() => setStep("ready")}
+          className="w-full text-gray-400 text-xs hover:text-navy transition-colors py-1">
+          דלג על האימות — המשך בכל זאת
         </button>
+      </div>
+    );
+  }
+
+  if (step === "ready") {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+          <CheckCircle2 className="w-8 h-8 text-green-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-navy">האימייל אומת בהצלחה!</h2>
+          <p className="text-gray-400 text-sm mt-1">החשבון שלך מוכן. בוא נבנה את פרופיל הקונה שלך</p>
+        </div>
 
         <button
-          onClick={() => router.push("/onboarding")}
-          className="w-full text-gray-400 text-sm hover:text-navy transition-colors py-1">
-          דלג על העלאת תמונה — אמת מאוחר יותר
+          onClick={() => { window.location.href = "/onboarding"; }}
+          className="w-full bg-amber text-white font-semibold py-3.5 rounded-2xl hover:bg-amber/90 transition-all shadow-md hover:scale-[1.01]">
+          התחל לבנות פרופיל קונה <ArrowLeft className="inline-block w-4 h-4 mr-2" />
         </button>
+
+        <p className="text-xs text-gray-400">ניתן לאמת זהות ולהעלות תמונת ת.ז. בכל שלב דרך <span className="text-amber">הגדרות → אימות זהות</span></p>
       </div>
     );
   }
@@ -316,7 +331,7 @@ function RegisterForm() {
             ? "bg-amber text-white hover:bg-amber/90 shadow-md hover:scale-[1.01]"
             : "bg-gray-200 text-gray-400 cursor-not-allowed"
         }`}>
-        {loading ? "יוצר חשבון..." : <>המשך לאימות זהות <ArrowLeft className="inline-block w-4 h-4 mr-2" /></>}
+        {loading ? "יוצר חשבון..." : <>צור חשבון <ArrowLeft className="inline-block w-4 h-4 mr-2" /></>}
       </button>
 
       <div className="flex items-center gap-3 my-1">
@@ -348,9 +363,11 @@ function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      router.push("/matches");
+      // Check if user has completed onboarding
+      const { data: bp } = await supabase.from("buyer_profiles").select("id").eq("user_id", data.user.id).single();
+      router.push(bp ? "/matches" : "/onboarding");
       router.refresh();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "שגיאה בכניסה";

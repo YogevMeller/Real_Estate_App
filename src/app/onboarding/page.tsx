@@ -5,9 +5,10 @@ import {
   ChevronLeft, ChevronRight, Home, MapPin, Building,
   TrendingUp, Sparkles, CheckCircle2, ArrowLeft,
   Train, Car, Users, Sun, Briefcase, Heart,
-  ShoppingBag, Shield, Wrench, Search, X,
+  ShoppingBag, Shield, Wrench, Search, X, Loader2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Step config ───────────────────────────────────────────────────────────────
 const STEPS = [
@@ -19,17 +20,7 @@ const STEPS = [
   { title: "סיכום", icon: Sparkles },
 ];
 
-// ── City search data ──────────────────────────────────────────────────────────
-const ISRAEL_CITIES = [
-  "תל אביב-יפו", "ירושלים", "חיפה", "ראשון לציון", "פתח תקווה",
-  "אשדוד", "נתניה", "באר שבע", "בני ברק", "חולון",
-  "רמת גן", "אשקלון", "רחובות", "בת ים", "בית שמש",
-  "כפר סבא", "הרצליה", "חדרה", "מודיעין", "לוד",
-  "רמלה", "נצרת", "עכו", "אילת", "רמת השרון",
-  "הוד השרון", "יהוד", "גבעתיים", "קריית אונו", "אור יהודה",
-  "נס ציונה", "גבעת שמואל", "קריית גת", "טבריה", "נהריה",
-  "ראש העין", "מזכרת בתיה", "אלעד", "טירת כרמל", "קריית ביאליק",
-];
+import { ISRAEL_CITIES } from "@/lib/israelCities";
 
 // ── Semantic tags ─────────────────────────────────────────────────────────────
 const LIFESTYLE_TAGS = [
@@ -121,6 +112,54 @@ export default function OnboardingPage() {
   const [importanceSchool, setImportanceSchool] = useState(3);
   const [importanceTransit, setImportanceTransit] = useState(3);
   const [importanceNature, setImportanceNature] = useState(3);
+
+  // ── Submit state ──
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const supabase = createClient();
+      // Try getUser first, fallback to session
+      let user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        user = session?.user ?? null;
+      }
+      if (!user) {
+        setSaveError("לא מחובר — התחבר מחדש");
+        setSaving(false);
+        return;
+      }
+
+      // Upsert buyer_profiles
+      const { error: bpError } = await supabase.from("buyer_profiles").upsert({
+        user_id: user.id,
+        budget_max: budgetMax,
+        budget_min: null,
+        rooms_min: rooms,
+        cities: selectedCities,
+        semantic_tags: selectedTags,
+        free_text: freeText || null,
+        purpose,
+        has_kids: familyStatus === "family" || planningKids,
+      } as never, { onConflict: "user_id" });
+
+      if (bpError) { setSaveError("שגיאה בשמירה: " + bpError.message); setSaving(false); return; }
+
+      // Update profile role
+      await supabase.from("profiles").update({
+        role: "buyer",
+      } as never).eq("id", user.id);
+
+      router.push("/matches");
+    } catch {
+      setSaveError("שגיאה בשמירה — נסה שוב");
+      setSaving(false);
+    }
+  };
 
   // ── City helpers ──
   const filteredCities = ISRAEL_CITIES.filter(
@@ -707,12 +746,16 @@ export default function OnboardingPage() {
               <ChevronLeft className="w-4 h-4" />
             </button>
           ) : (
-            <button
-              onClick={() => router.push("/matches")}
-              className="flex items-center gap-2 bg-navy text-white px-8 py-3 rounded-2xl font-semibold text-sm hover:bg-navy/90 hover:scale-[1.02] shadow-md transition-all">
-              <ArrowLeft className="w-4 h-4" />
-              ראה את ההתאמות שלי
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+              <button
+                onClick={handleSubmit}
+                disabled={saving}
+                className="flex items-center gap-2 bg-navy text-white px-8 py-3 rounded-2xl font-semibold text-sm hover:bg-navy/90 hover:scale-[1.02] shadow-md transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
+                {saving ? "שומר..." : "ראה את ההתאמות שלי"}
+              </button>
+            </div>
           )}
         </div>
       </div>

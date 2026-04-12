@@ -2,49 +2,46 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Maximize2, TrendingUp, Scan, ChevronLeft, ChevronRight, Zap } from "lucide-react";
-import { Property } from "@/lib/mockData";
+import { MapPin, Maximize2, TrendingUp, Scan, ChevronLeft, ChevronRight } from "lucide-react";
+import type { PropertyView } from "@/lib/supabase/queries";
 
-export default function PropertyCard({ property }: { property: Property }) {
+export default function PropertyCard({ property }: { property: PropertyView }) {
   const [photoIdx, setPhotoIdx] = useState(0);
+  const photos = property.photos.length > 0 ? property.photos : ["/lidar.jpg"];
 
   const formattedPrice =
     property.price >= 1000000
       ? `₪${(property.price / 1000000).toFixed(1)}M`
       : `₪${(property.price / 1000).toFixed(0)}K`;
 
-  const hasDrywall = property.floorPlan.drywallPoints.length > 0;
-
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-amber/40 hover:shadow-lg transition-all duration-300 group" dir="rtl">
       {/* Photo gallery */}
       <div className="relative h-52 overflow-hidden bg-amber-light">
         <Image
-          src={property.photos[photoIdx]}
+          src={photos[photoIdx]}
           alt={property.address}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-navy/50 via-transparent to-transparent" />
 
-        {/* Photo nav arrows */}
-        {property.photos.length > 1 && (
+        {photos.length > 1 && (
           <>
             <button
-              onClick={(e) => { e.preventDefault(); setPhotoIdx((i) => (i + 1) % property.photos.length); }}
+              onClick={(e) => { e.preventDefault(); setPhotoIdx((i) => (i + 1) % photos.length); }}
               className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
             >
               <ChevronLeft className="w-4 h-4 text-white" />
             </button>
             <button
-              onClick={(e) => { e.preventDefault(); setPhotoIdx((i) => (i - 1 + property.photos.length) % property.photos.length); }}
+              onClick={(e) => { e.preventDefault(); setPhotoIdx((i) => (i - 1 + photos.length) % photos.length); }}
               className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
             >
               <ChevronRight className="w-4 h-4 text-white" />
             </button>
-            {/* Dots */}
             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1">
-              {property.photos.map((_, i) => (
+              {photos.map((_, i) => (
                 <button key={i} onClick={(e) => { e.preventDefault(); setPhotoIdx(i); }}
                   className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIdx ? "bg-white scale-125" : "bg-white/50"}`} />
               ))}
@@ -58,12 +55,6 @@ export default function PropertyCard({ property }: { property: Property }) {
             <Scan className="w-3 h-3 text-amber" />
             LiDAR ✓
           </span>
-          {hasDrywall && (
-            <span className="flex items-center gap-1 bg-amber text-white text-xs px-2 py-1 rounded-full">
-              <Zap className="w-3 h-3" />
-              פוטנציאל פתוח
-            </span>
-          )}
         </div>
 
         {/* Price */}
@@ -81,7 +72,6 @@ export default function PropertyCard({ property }: { property: Property }) {
           <span>{property.city}</span>
         </div>
 
-        {/* Stats row */}
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           <span className="text-xs bg-gray-50 border border-gray-100 text-navy px-2.5 py-1 rounded-lg font-medium">{property.rooms} חד׳</span>
           <span className="text-xs bg-gray-50 border border-gray-100 text-navy px-2.5 py-1 rounded-lg font-medium flex items-center gap-1">
@@ -90,13 +80,6 @@ export default function PropertyCard({ property }: { property: Property }) {
           <span className="text-xs bg-gray-50 border border-gray-100 text-navy px-2.5 py-1 rounded-lg font-medium">קומה {property.floor}/{property.totalFloors}</span>
           {property.elevator && <span className="text-xs bg-gray-50 border border-gray-100 text-navy px-2.5 py-1 rounded-lg font-medium">מעלית</span>}
           {property.balcony && <span className="text-xs bg-gray-50 border border-gray-100 text-navy px-2.5 py-1 rounded-lg font-medium">מרפסת</span>}
-        </div>
-
-        {/* Neighborhood quick stats */}
-        <div className="flex items-center gap-3 mt-3 text-xs text-gray-500">
-          <span>🏫 גן {property.neighborhood.education[0]?.walkMin} דק׳</span>
-          <span>🏥 מרפאה {property.neighborhood.health[0]?.walkMin} דק׳</span>
-          <span>🚆 רכבת {property.neighborhood.transit[0]?.walkMin} דק׳</span>
         </div>
 
         {/* CTA */}
