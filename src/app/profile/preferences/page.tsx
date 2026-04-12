@@ -2,10 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Home, ArrowRight, Edit3, CheckCircle2, Save,
+  Edit3, CheckCircle2, Save,
   MapPin, BedDouble, Wallet, Heart, RefreshCw, Brain,
   ChevronDown, X, Plus,
 } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import { mockBuyerProfile } from "@/lib/mockData";
 
 // ── Editable state seeded from mock profile ──────────────────────────────────
@@ -77,36 +78,21 @@ export default function PreferencesPage() {
 
   return (
     <div className="min-h-screen bg-cream">
-      {/* Top nav */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
-        <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-amber rounded-lg flex items-center justify-center">
-              <Home className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-navy font-bold text-base tracking-tight">Agenta</span>
-          </Link>
+      <Navbar />
+      {/* Breadcrumb */}
+      <div className="border-b border-gray-100 bg-white">
+        <div className="max-w-screen-xl mx-auto px-6 h-10 flex items-center gap-2 text-sm">
+          <Link href="/profile" className="text-gray-400 hover:text-navy transition-colors">פרופיל</Link>
           <span className="text-gray-300">/</span>
-          <Link href="/profile" className="text-sm text-gray-400 hover:text-navy transition-colors flex items-center gap-1">
-            <ChevronDown className="w-4 h-4 rotate-90" />פרופיל
-          </Link>
-          <span className="text-gray-300">/</span>
-          <span className="text-sm text-navy font-medium">העדפות חיפוש</span>
+          <span className="text-navy font-medium">העדפות חיפוש</span>
         </div>
-      </nav>
+      </div>
 
       <div className="max-w-screen-xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-navy">העדפות חיפוש</h1>
-            <p className="text-gray-400 text-sm mt-1">עדכן את ההעדפות שלך — ה-AI יתאים את ציוני ההתאמה בהתאם</p>
-          </div>
-          <Link href="/profile"
-            className="flex items-center gap-2 bg-white border border-gray-200 text-navy text-sm font-medium px-4 py-2.5 rounded-xl hover:border-amber hover:text-amber transition-colors shadow-sm">
-            <ArrowRight className="w-4 h-4" />
-            חזרה לפרופיל
-          </Link>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-navy">העדפות חיפוש</h1>
+          <p className="text-gray-400 text-sm mt-1">עדכן את ההעדפות שלך — ה-AI יתאים את ציוני ההתאמה בהתאם</p>
         </div>
 
         <div className="grid grid-cols-3 gap-6">

@@ -27,8 +27,19 @@ const STATUS_CONFIG = {
 export default function MatchesPage() {
   const [tab, setTab] = useState<"matches" | "alerts" | "profile">("matches");
   const [feedbackPropertyId, setFeedbackPropertyId] = useState<string | null>(null);
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [alerts, setAlerts] = useState(ALERTS);
+  const [notifPrefs, setNotifPrefs] = useState({
+    newMatch: true, priceDrops: true, visitReminders: true,
+    weeklyReport: false, newNeighborhood: false,
+  });
 
-  const enriched = properties.map((p) => ({
+  const dismissProperty = (id: string) => setDismissedIds((prev) => [...prev, id]);
+  const markAllRead = () => setAlerts((prev) => prev.map((a) => ({ ...a, unread: false })));
+  const togglePref = (key: keyof typeof notifPrefs) =>
+    setNotifPrefs((p) => ({ ...p, [key]: !p[key] }));
+
+  const enriched = properties.filter((p) => !dismissedIds.includes(p.id)).map((p) => ({
     ...p,
     meta: matchMeta.find((m) => m.propertyId === p.id) ?? {
       propertyId: p.id, score: 50, aiSummary: "", matchTags: [], status: "new" as const,
@@ -171,9 +182,10 @@ export default function MatchesPage() {
                           className="flex items-center gap-1.5 bg-amber text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-amber/90 transition-colors">
                           לנכס <ChevronLeft className="w-4 h-4" />
                         </Link>
-                        <button className="text-sm border border-gray-200 text-navy px-4 py-2 rounded-xl hover:border-amber hover:text-amber transition-colors">
+                        <Link href={`/property/${p.id}`}
+                          className="text-sm border border-gray-200 text-navy px-4 py-2 rounded-xl hover:border-amber hover:text-amber transition-colors">
                           דבר עם סוכן AI
-                        </button>
+                        </Link>
                         {meta.status === "visited" && (
                           <button
                             onClick={() => setFeedbackPropertyId(p.id)}
@@ -181,7 +193,9 @@ export default function MatchesPage() {
                             השאר פידבק
                           </button>
                         )}
-                        <button className="text-sm text-gray-400 hover:text-navy transition-colors mr-auto">
+                        <button
+                          onClick={() => dismissProperty(p.id)}
+                          className="text-sm text-gray-400 hover:text-red-400 transition-colors mr-auto">
                           לא מעניין
                         </button>
                       </div>
@@ -212,10 +226,20 @@ export default function MatchesPage() {
         {tab === "alerts" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-gray-400">יש לך <span className="text-navy font-semibold">2 התראות שלא נקראו</span></p>
-              <button className="text-sm text-amber hover:text-amber/80">סמן הכל כנקרא</button>
+              <p className="text-sm text-gray-400">
+                {alerts.filter((a) => a.unread).length > 0
+                  ? <>יש לך <span className="text-navy font-semibold">{alerts.filter((a) => a.unread).length} התראות שלא נקראו</span></>
+                  : <span className="text-navy font-semibold">כל ההתראות נקראו</span>
+                }
+              </p>
+              <button
+                onClick={markAllRead}
+                className="text-sm text-amber hover:text-amber/80 transition-colors disabled:opacity-40"
+                disabled={alerts.every((a) => !a.unread)}>
+                סמן הכל כנקרא
+              </button>
             </div>
-            {ALERTS.map((a) => (
+            {alerts.map((a) => (
               <div key={a.id}
                 className={`bg-white rounded-2xl border p-4 flex items-start gap-4 hover:shadow-md transition-all ${
                   a.unread ? "border-amber/30 bg-amber-light/20" : "border-gray-100"
@@ -292,19 +316,22 @@ export default function MatchesPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-6">
               <h2 className="text-lg font-bold text-navy mb-4">העדפות התראות</h2>
               <div className="space-y-3">
-                {[
-                  { label: "נכס חדש תואם", enabled: true },
-                  { label: "ירידת מחיר בנכסים שמורים", enabled: true },
-                  { label: "תזכורות ביקור", enabled: true },
-                  { label: "דוחות מגמות שוק (שבועי)", enabled: false },
-                  { label: "נכסים חדשים בשכונות שמורות", enabled: false },
-                ].map((pref) => (
-                  <div key={pref.label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                {([
+                  { key: "newMatch", label: "נכס חדש תואם" },
+                  { key: "priceDrops", label: "ירידת מחיר בנכסים שמורים" },
+                  { key: "visitReminders", label: "תזכורות ביקור" },
+                  { key: "weeklyReport", label: "דוחות מגמות שוק (שבועי)" },
+                  { key: "newNeighborhood", label: "נכסים חדשים בשכונות שמורות" },
+                ] as const).map((pref) => (
+                  <div key={pref.key} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                     <span className="text-sm text-navy">{pref.label}</span>
-                    <div className={`w-10 rounded-full transition-colors cursor-pointer relative ${pref.enabled ? "bg-amber" : "bg-gray-200"}`}
+                    <button
+                      type="button"
+                      onClick={() => togglePref(pref.key)}
+                      className={`w-10 rounded-full transition-colors relative shrink-0 ${notifPrefs[pref.key] ? "bg-amber" : "bg-gray-200"}`}
                       style={{ height: "22px" }}>
-                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${pref.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
-                    </div>
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifPrefs[pref.key] ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
                   </div>
                 ))}
               </div>

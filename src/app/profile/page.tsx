@@ -3,12 +3,13 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  Heart, Calendar, Eye, MessageSquare, MapPin, Settings,
-  Star, Clock, CheckCircle2, ChevronLeft, TrendingUp,
-  Maximize2, User, Bell, LogOut, Home, Search,
+  Heart, Eye, MessageSquare, MapPin, Settings,
+  Star, Clock, CheckCircle2, TrendingUp,
+  Maximize2, User, LogOut, Search,
   CalendarDays, ArrowUpRight, Edit3, Shield, Plus,
   X, Brain, ThumbsUp,
 } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import { properties, reviews } from "@/lib/mockData";
 
 // ── Mock user data ─────────────────────────────────────────────────────────────
@@ -78,45 +79,47 @@ type TabType = "saved" | "upcoming" | "history" | "reviews";
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>("upcoming");
   const [reviewModal, setReviewModal] = useState<typeof VISIT_HISTORY[0] | null>(null);
+  const [upcomingVisits, setUpcomingVisits] = useState(UPCOMING_VISITS);
+  const [savedProps, setSavedProps] = useState(properties);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const savedProperties = properties;
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const cancelVisit = (id: string) =>
+    setUpcomingVisits((prev) => prev.filter((v) => v.id !== id));
+
+  const unsaveProperty = (id: string) =>
+    setSavedProps((prev) => prev.filter((p) => p.id !== id));
+
+  const savedProperties = savedProps;
 
   const STATS = [
     { icon: Heart, label: "נכסים שמורים", value: savedProperties.length, color: "text-rose-500 bg-rose-50" },
-    { icon: CalendarDays, label: "ביקורים קרובים", value: UPCOMING_VISITS.length, color: "text-blue-500 bg-blue-50" },
+    { icon: CalendarDays, label: "ביקורים קרובים", value: upcomingVisits.length, color: "text-blue-500 bg-blue-50" },
     { icon: Eye, label: "ביקורים כולל", value: VISIT_HISTORY.length, color: "text-purple-500 bg-purple-50" },
     { icon: MessageSquare, label: "חוות דעת", value: MY_REVIEWS.length, color: "text-amber bg-amber-light" },
   ];
 
   const NAV_ITEMS: { key: TabType; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
     { key: "saved", label: "נכסים שמורים", icon: Heart, count: savedProperties.length },
-    { key: "upcoming", label: "ביקורים קרובים", icon: CalendarDays, count: UPCOMING_VISITS.length },
+    { key: "upcoming", label: "ביקורים קרובים", icon: CalendarDays, count: upcomingVisits.length },
     { key: "history", label: "היסטוריית ביקורים", icon: Eye, count: VISIT_HISTORY.length },
     { key: "reviews", label: "חוות דעת שלי", icon: MessageSquare, count: MY_REVIEWS.length },
   ];
 
   return (
     <div className="min-h-screen bg-cream">
-      {/* Top nav */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
-        <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-amber rounded-lg flex items-center justify-center">
-              <Home className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-navy font-bold text-base tracking-tight">Agenta</span>
-          </Link>
-          <div className="flex items-center gap-6 text-sm">
-            <Link href="/search" className="text-navy/60 hover:text-navy transition-colors">חיפוש</Link>
-            <Link href="/matches" className="text-navy/60 hover:text-navy transition-colors">התאמות</Link>
-            <Link href="/sell" className="text-navy/60 hover:text-navy transition-colors">מכירה</Link>
-            <button className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-amber-light transition-colors">
-              <Bell className="w-4 h-4 text-navy/60" />
-              <span className="absolute top-1 left-1 w-2 h-2 bg-amber rounded-full" />
-            </button>
-          </div>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-navy text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-amber shrink-0" />
+          {toast}
         </div>
-      </nav>
+      )}
+      <Navbar />
 
       <div className="max-w-screen-xl mx-auto px-6 py-8">
         <div className="flex gap-7">
@@ -219,10 +222,10 @@ export default function ProfilePage() {
                   <Settings className="w-4 h-4 text-gray-400 shrink-0" />
                   <span>הגדרות חשבון</span>
                 </Link>
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-50 transition-all">
+                <Link href="/auth" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-50 transition-all">
                   <LogOut className="w-4 h-4 shrink-0" />
                   <span>התנתק</span>
-                </button>
+                </Link>
               </div>
             </div>
           </aside>
@@ -244,7 +247,10 @@ export default function ProfilePage() {
                       <div className="relative h-40 bg-amber-light overflow-hidden">
                         <Image src={p.photos[0]} alt={p.address} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 bg-gradient-to-t from-navy/40 to-transparent" />
-                        <button className="absolute top-2.5 left-2.5 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center hover:bg-red-50 transition-colors">
+                        <button
+                          onClick={() => unsaveProperty(p.id)}
+                          className="absolute top-2.5 left-2.5 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center hover:bg-red-50 transition-colors"
+                          title="הסר מהשמורים">
                           <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
                         </button>
                         <div className="absolute bottom-2.5 right-2.5">
@@ -276,22 +282,30 @@ export default function ProfilePage() {
             {activeTab === "upcoming" && (
               <div>
                 <SectionHeader
-                  title={`ביקורים קרובים (${UPCOMING_VISITS.length})`}
+                  title={`ביקורים קרובים (${upcomingVisits.length})`}
                   sub="צפיות שקבעת עם מוכרים"
                 />
 
                 {/* Calendar hint */}
+                {upcomingVisits.length > 0 ? (
                 <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center gap-3 mb-5">
                   <CalendarDays className="w-5 h-5 text-blue-500 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-navy">יש לך {UPCOMING_VISITS.length} ביקורים השבוע</p>
-                    <p className="text-xs text-gray-500 mt-0.5">הביקור הקרוב — {UPCOMING_VISITS[0].address}, {UPCOMING_VISITS[0].date} בשעה {UPCOMING_VISITS[0].time}</p>
+                    <p className="text-sm font-medium text-navy">יש לך {upcomingVisits.length} ביקורים השבוע</p>
+                    <p className="text-xs text-gray-500 mt-0.5">הביקור הקרוב — {upcomingVisits[0].address}, {upcomingVisits[0].date} בשעה {upcomingVisits[0].time}</p>
                   </div>
-                  <button className="text-xs text-blue-600 font-medium hover:text-blue-700">סנכרן ליומן</button>
+                  <button
+                    onClick={() => showToast("הביקורים סונכרנו ליומן שלך")}
+                    className="text-xs text-blue-600 font-medium hover:text-blue-700 transition-colors">
+                    סנכרן ליומן
+                  </button>
                 </div>
+                ) : (
+                  <div className="text-center py-16 text-gray-400 text-sm">אין ביקורים קרובים</div>
+                )}
 
                 <div className="space-y-3">
-                  {UPCOMING_VISITS.map((v) => (
+                  {upcomingVisits.map((v) => (
                     <div key={v.id} className="bg-white rounded-2xl border border-gray-100 hover:border-amber/20 transition-all p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
@@ -338,13 +352,19 @@ export default function ProfilePage() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-50">
-                        <button className="flex items-center gap-1.5 text-xs border border-gray-200 text-navy px-3 py-2 rounded-xl hover:border-amber hover:text-amber transition-colors">
+                        <button
+                          onClick={() => showToast("בקשת שינוי שעה נשלחה למוכר")}
+                          className="flex items-center gap-1.5 text-xs border border-gray-200 text-navy px-3 py-2 rounded-xl hover:border-amber hover:text-amber transition-colors">
                           <Edit3 className="w-3.5 h-3.5" />שנה שעה
                         </button>
-                        <button className="flex items-center gap-1.5 text-xs border border-gray-200 text-navy px-3 py-2 rounded-xl hover:border-amber hover:text-amber transition-colors">
+                        <button
+                          onClick={() => showToast("ההודעה נשלחה למוכר")}
+                          className="flex items-center gap-1.5 text-xs border border-gray-200 text-navy px-3 py-2 rounded-xl hover:border-amber hover:text-amber transition-colors">
                           <MessageSquare className="w-3.5 h-3.5" />שלח הודעה למוכר
                         </button>
-                        <button className="flex items-center gap-1.5 text-xs text-red-400 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors mr-auto">
+                        <button
+                          onClick={() => cancelVisit(v.id)}
+                          className="flex items-center gap-1.5 text-xs text-red-400 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors mr-auto">
                           <X className="w-3.5 h-3.5" />בטל ביקור
                         </button>
                       </div>
@@ -434,7 +454,9 @@ export default function ProfilePage() {
                             <span className="text-xs text-gray-400">{r.date}</span>
                           </div>
                         </div>
-                        <button className="flex items-center gap-1 text-xs text-gray-400 hover:text-amber transition-colors">
+                        <button
+                          onClick={() => showToast("עריכת חוות דעת — בקרוב")}
+                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-amber transition-colors">
                           <Edit3 className="w-3.5 h-3.5" />ערוך
                         </button>
                       </div>

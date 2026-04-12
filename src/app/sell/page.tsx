@@ -1,4 +1,5 @@
 import { Scan, Zap, TrendingUp, ShieldCheck, CheckCircle2, Smartphone } from "lucide-react";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 
 const STEPS = [
@@ -41,9 +42,9 @@ export default function SellPage() {
             פלטפורמת נדל״ן מהפכנית מבוססת AI. תוכניות LiDAR מדויקות.
             התאמה ישירה לקונים. אפס עמלות תיווך.
           </p>
-          <button className="mt-8 bg-amber text-white font-semibold px-8 py-4 rounded-2xl hover:bg-amber/90 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]">
+          <Link href="/onboarding" className="mt-8 inline-block bg-amber text-white font-semibold px-8 py-4 rounded-2xl hover:bg-amber/90 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]">
             פרסם את הנכס שלי
-          </button>
+          </Link>
           <div className="flex gap-10 mt-10">
             {[
               { value: "0%", label: "עמלות" },
@@ -114,9 +115,9 @@ export default function SellPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <button className="bg-amber text-white font-semibold px-10 py-4 rounded-2xl hover:bg-amber/90 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]">
+          <Link href="/onboarding" className="inline-block bg-amber text-white font-semibold px-10 py-4 rounded-2xl hover:bg-amber/90 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]">
             התחל לפרסם — בחינם
-          </button>
+          </Link>
           <p className="text-gray-400 text-sm mt-3 flex items-center justify-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             ללא כרטיס אשראי · ביטול בכל עת

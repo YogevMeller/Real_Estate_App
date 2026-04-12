@@ -22,28 +22,26 @@ export default function Home() {
 
         {/* Search bar */}
         <div className="mt-10 relative max-w-2xl mx-auto">
-          <div className="flex items-center bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-4 gap-3 focus-within:border-amber focus-within:ring-2 focus-within:ring-amber/20 transition-all">
-            <button className="bg-amber text-white px-5 py-2 rounded-xl font-medium text-sm hover:bg-amber/90 transition-colors shrink-0">
+          <Link href="/search" className="flex items-center bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-4 gap-3 hover:border-amber hover:ring-2 hover:ring-amber/20 transition-all">
+            <div className="bg-amber text-white px-5 py-2 rounded-xl font-medium text-sm shrink-0">
               חיפוש
-            </button>
-            <input
-              type="text"
-              placeholder="4 חדרים עם פוטנציאל שיפוץ ליד תחנת הרכבת הקלה"
-              className="flex-1 text-navy text-base bg-transparent outline-none placeholder-gray-400 text-right"
-              dir="rtl"
-            />
+            </div>
+            <span className="flex-1 text-gray-400 text-base text-right">
+              4 חדרים עם פוטנציאל שיפוץ ליד תחנת הרכבת הקלה
+            </span>
             <Search className="w-5 h-5 text-gray-400 shrink-0" />
-          </div>
+          </Link>
           {/* Popular tags */}
           <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
             <span className="text-gray-400 text-sm">פופולרי:</span>
             {["פוטנציאל מטבח פתוח", "ליד הרכבת הקלה", "תקרה גבוהה", "ללא מתווך"].map((tag) => (
-              <button
+              <Link
                 key={tag}
+                href="/search"
                 className="text-sm bg-white border border-gray-200 text-navy/70 px-3.5 py-1.5 rounded-full hover:border-amber hover:text-amber transition-colors"
               >
                 {tag}
-              </button>
+              </Link>
             ))}
           </div>
         </div>
@@ -100,9 +98,9 @@ export default function Home() {
       <section className="mx-6 mb-16 rounded-3xl bg-gradient-to-l from-amber to-yellow-400 text-center py-16 px-8">
         <h2 className="text-3xl font-bold text-white">צור פרופיל קונה</h2>
         <p className="text-white/80 mt-2 text-base">קבל התאמות נכסים אישיות והתראות מיידיות</p>
-        <button className="mt-8 bg-white text-amber font-semibold px-8 py-3.5 rounded-2xl hover:scale-105 transition-transform shadow-lg">
+        <Link href="/onboarding" className="mt-8 inline-block bg-white text-amber font-semibold px-8 py-3.5 rounded-2xl hover:scale-105 transition-transform shadow-lg">
           התחל עכשיו
-        </button>
+        </Link>
       </section>
     </div>
   );
