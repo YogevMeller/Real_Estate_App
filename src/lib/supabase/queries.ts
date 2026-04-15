@@ -63,8 +63,19 @@ function mapProperty(row: Row): PropertyView {
 export type PropertyFilters = {
   city?: string;
   roomsMin?: number;
+  roomsMax?: number;
   priceMin?: number;
   priceMax?: number;
+  sqmMin?: number;
+  sqmMax?: number;
+  floorMin?: number;
+  floorMax?: number;
+  elevator?: boolean;
+  balcony?: boolean;
+  parking?: boolean;
+  storage?: boolean;
+  ceilingHeightMin?: number;
+  kitchenWall?: string;       // "drywall" → open-plan potential
   search?: string;
 };
 
@@ -79,8 +90,19 @@ export async function getProperties(filters?: PropertyFilters, limit = 50) {
 
   if (filters?.city) query = query.eq("city", filters.city);
   if (filters?.roomsMin) query = query.gte("rooms", filters.roomsMin);
+  if (filters?.roomsMax) query = query.lte("rooms", filters.roomsMax);
   if (filters?.priceMin) query = query.gte("price", filters.priceMin);
   if (filters?.priceMax) query = query.lte("price", filters.priceMax);
+  if (filters?.sqmMin) query = query.gte("sqm", filters.sqmMin);
+  if (filters?.sqmMax) query = query.lte("sqm", filters.sqmMax);
+  if (filters?.floorMin) query = query.gte("floor", filters.floorMin);
+  if (filters?.floorMax) query = query.lte("floor", filters.floorMax);
+  if (filters?.elevator) query = query.eq("elevator", true);
+  if (filters?.balcony) query = query.eq("balcony", true);
+  if (filters?.parking) query = query.neq("parking", null);
+  if (filters?.storage) query = query.eq("storage", true);
+  if (filters?.ceilingHeightMin) query = query.gte("ceiling_height", filters.ceilingHeightMin);
+  if (filters?.kitchenWall) query = query.eq("kitchen_wall", filters.kitchenWall);
   if (filters?.search) query = query.or(`address.ilike.%${filters.search}%,city.ilike.%${filters.search}%`);
 
   const { data, error } = await query;

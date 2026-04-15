@@ -1,14 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Sparkles, ShieldCheck, ArrowLeft, Scan, Loader2, Brain, MessageCircle, BarChart3, Eye, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Sparkles, ShieldCheck, ArrowLeft, Scan, Loader2, Brain, MessageCircle, BarChart3, Eye, CheckCircle2, Info } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import PropertyCard from "@/components/PropertyCard";
 import { getProperties, type PropertyView } from "@/lib/supabase/queries";
 
 export default function Home() {
+  const router = useRouter();
+  const [heroQuery, setHeroQuery] = useState("");
   const [properties, setProperties] = useState<PropertyView[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleSearch = () => {
+    const q = heroQuery.trim();
+    router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+  };
 
   useEffect(() => {
     getProperties(undefined, 6).then((data) => {
@@ -34,19 +42,26 @@ export default function Home() {
 
         {/* Search bar */}
         <div className="mt-10 relative max-w-2xl mx-auto">
-          <Link href="/search" className="flex items-center bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-4 gap-3 hover:border-amber hover:ring-2 hover:ring-amber/20 transition-all">
-            <div className="bg-amber text-white px-5 py-2 rounded-xl font-medium text-sm shrink-0">
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleSearch(); }}
+            className="flex items-center bg-white rounded-2xl shadow-lg border border-gray-100 px-5 py-4 gap-3 hover:border-amber hover:ring-2 hover:ring-amber/20 transition-all"
+          >
+            <button type="submit" className="bg-amber text-white px-5 py-2 rounded-xl font-medium text-sm shrink-0 hover:bg-amber/90 transition-colors">
               חיפוש
-            </div>
-            <span className="flex-1 text-gray-400 text-base text-right">
-              4 חדרים עם פוטנציאל שיפוץ ליד תחנת הרכבת הקלה
-            </span>
+            </button>
+            <input
+              value={heroQuery}
+              onChange={(e) => setHeroQuery(e.target.value)}
+              placeholder="4 חדרים עם פוטנציאל שיפוץ ליד תחנת הרכבת הקלה"
+              className="flex-1 bg-transparent text-navy text-base outline-none placeholder-gray-400 text-right"
+              dir="rtl"
+            />
             <Search className="w-5 h-5 text-gray-400 shrink-0" />
-          </Link>
+          </form>
           <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
             <span className="text-gray-400 text-sm">פופולרי:</span>
             {["פוטנציאל מטבח פתוח", "ליד הרכבת הקלה", "תקרה גבוהה", "ללא מתווך"].map((tag) => (
-              <Link key={tag} href="/search"
+              <Link key={tag} href={`/search?q=${encodeURIComponent(tag)}`}
                 className="text-sm bg-white border border-gray-200 text-navy/70 px-3.5 py-1.5 rounded-full hover:border-amber hover:text-amber transition-colors">
                 {tag}
               </Link>
@@ -110,6 +125,41 @@ export default function Home() {
             <p>אין נכסים פורסמו עדיין. נכסים חדשים יופיעו כאן.</p>
           </div>
         )}
+      </section>
+
+      {/* ── About ── */}
+      <section className="max-w-4xl mx-auto px-6 pb-24" id="about">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-amber-light text-amber text-sm font-medium px-4 py-1.5 rounded-full mb-4">
+            <Info className="w-4 h-4" />
+            הסיפור שלנו
+          </div>
+          <h2 className="text-3xl font-bold text-navy">אודות</h2>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-gray-100 p-8 md:p-12 space-y-6 text-right leading-relaxed text-navy/80">
+          <p>
+            אני יוגב. מאז ומתמיד הייתה לי אהבה עמוקה לעולם הנדל״ן. אני מוצא את עצמי לא פעם שוקע במשך שעות בחיפוש אחר עסקאות, מפשפש בלוחות מכירה, מנתח פוטנציאל של נכסים, ומדמיין איך חלל מסוים יכול להשתנות. עבורי, כל דירה היא פאזל – הזדמנות שמחכה שמישהו יחבר את כל החלקים שלה נכון.
+          </p>
+          <p>
+            אבל כמי שמגיע מהנדסת תעשייה וניהול וחי ביום-יום את עולמות הדאטה, התחלתי לשים לב לבעיה שממש צרמה לי. הרי לנתח נתונים, לייעל תהליכים ולבנות מערכות מידע זה מה שאני עושה למחייתי – אז איך יכול להיות שהשוק הכי יקר והכי משמעותי בחיים שלנו פועל בצורה כל כך לא יעילה?
+          </p>
+          <p>
+            במהלך החיפושים שלי, חוויתי על בשרי את התסכול: המידע שמוצג לרוב חלקי, התמונות לא משקפות את המציאות, ויש תלות מתמדת בגורמים מתווכים שעולים עשרות אלפי שקלים ולא תמיד מספקים ערך אמיתי. ראיתי איך אנשים (וגם אני) מבזבזים שעות יקרות על פגישות סרק וסיורים בדירות שמתבררות תוך דקה כלא רלוונטיות.
+          </p>
+          <p className="font-semibold text-navy text-lg">
+            הבנתי שהשוק הזה חייב לעבור טרנספורמציה.
+          </p>
+          <p>
+            כך נולד החזון מאחורי המערכת הזו. החלטתי לקחת את התשוקה שלי לנדל״ן ולשלב אותה עם האהבה לטכנולוגיה, לבינה מלאכותית ולשקיפות של נתונים. המטרה שלי היא פשוטה: להחזיר את הכלי הכי חזק – המידע – ישירות לידיים שלכם.
+          </p>
+          <p>
+            רציתי לבנות מקום שבו האמת העובדתית והאדריכלית נמצאת בפרונט. מקום שבו סוכן חכם עונה לכם על כל שאלה בזמן אמת, וחוכמת ההמונים עוזרת לכם לקבל החלטה מושכלת עוד לפני שיצאתם מהבית. בלי מתווכים, בלי אינטרסים נסתרים, ועם מינימום פגישות מיותרות – רק התאמות מדויקות, שקופות ויעילות בין קונים למוכרים.
+          </p>
+          <p className="text-amber font-bold text-lg">
+            ברוכים הבאים לדור הבא של עסקאות הנדל״ן.
+          </p>
+        </div>
       </section>
 
       {/* ── How it works ── */}

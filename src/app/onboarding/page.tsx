@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft, ChevronRight, Home, MapPin, Building,
@@ -77,6 +77,33 @@ const MUST_FEATURES = [
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [userName, setUserName] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Load user session on mount — persist userId for submit
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      // Try getSession first (local cookies), fall back to getUser (network)
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? (await supabase.auth.getUser()).data.user;
+      if (user) {
+        const name = user.user_metadata?.first_name || user.email?.split("@")[0] || "";
+        setUserName(name);
+        setUserId(user.id);
+      }
+    })();
+
+    // Listen for auth changes (in case session refreshes during onboarding)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        const name = session.user.user_metadata?.first_name || session.user.email?.split("@")[0] || "";
+        setUserName(name);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // ── Step 0: Personal ──
   const [familyStatus, setFamilyStatus] = useState<"single" | "couple" | "family" | "">("");
@@ -122,21 +149,27 @@ export default function OnboardingPage() {
     setSaveError("");
     try {
       const supabase = createClient();
-      // Try getUser first, fallback to session
-      let user = (await supabase.auth.getUser()).data.user;
-      if (!user) {
+
+      // Use persisted userId, or try one more time
+      let uid = userId;
+      if (!uid) {
         const { data: { session } } = await supabase.auth.getSession();
-        user = session?.user ?? null;
+        uid = session?.user?.id ?? null;
       }
-      if (!user) {
-        setSaveError("לא מחובר — התחבר מחדש");
+      if (!uid) {
+        const { data: { user } } = await supabase.auth.getUser();
+        uid = user?.id ?? null;
+      }
+      if (!uid) {
+        setSaveError("יש להתחבר כדי לשמור — מעביר לעמוד התחברות...");
         setSaving(false);
+        setTimeout(() => { router.push("/auth?redirect=/onboarding"); }, 2000);
         return;
       }
 
       // Upsert buyer_profiles
       const { error: bpError } = await supabase.from("buyer_profiles").upsert({
-        user_id: user.id,
+        user_id: uid,
         budget_max: budgetMax,
         budget_min: null,
         rooms_min: rooms,
@@ -152,7 +185,7 @@ export default function OnboardingPage() {
       // Update profile role
       await supabase.from("profiles").update({
         role: "buyer",
-      } as never).eq("id", user.id);
+      } as never).eq("id", uid);
 
       router.push("/matches");
     } catch {
@@ -662,24 +695,45 @@ export default function OnboardingPage() {
         {/* ──────────────────────────── STEP 5: Summary ──────────────────────────── */}
         {step === 5 && (
           <div className="space-y-4">
+            {/* Personal greeting */}
+            <div className="bg-gradient-to-bl from-navy to-navy/90 rounded-3xl p-7 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-amber to-yellow-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg text-white font-bold text-2xl">
+                {(userName[0] || "?").toUpperCase()}
+              </div>
+              <h2 className="text-2xl font-bold text-white">{userName ? `${userName}, הפרופיל שלך מוכן!` : "הפרופיל שלך מוכן!"}</h2>
+              <p className="text-white/60 text-sm mt-1">הסוכן החכם שלנו כבר מתחיל לעבוד עבורך</p>
+            </div>
+
+            {/* Profile summary card */}
             <div className="bg-white rounded-3xl border border-gray-100 p-7">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+              <h3 className="text-lg font-bold text-navy mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                סיכום הפרופיל
+              </h3>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">סטטוס</p>
+                  <p className="text-sm font-semibold text-navy">{
+                    familyStatus === "family" ? `משפחה עם ${kidsCount} ילדים` :
+                    familyStatus === "couple" ? (planningKids ? "זוג — מתכננים ילדים" : "זוג") : "יחיד/ה"
+                  }</p>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-navy">הפרופיל שלך מוכן</h2>
-                  <p className="text-gray-400 text-sm">ה-AI מחפש עבורך עכשיו</p>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">תקציב</p>
+                  <p className="text-sm font-semibold text-navy">עד {formatPrice(budgetMax)}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">הון עצמי</p>
+                  <p className="text-sm font-semibold text-navy">{equity}%</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400">כניסה</p>
+                  <p className="text-sm font-semibold text-navy">{moveTimeline || "—"}</p>
                 </div>
               </div>
 
               <div className="space-y-0 divide-y divide-gray-50">
-                <SummaryRow icon="👨‍👩‍👧" label="פרופיל" value={
-                  familyStatus === "family" ? `משפחה עם ${kidsCount} ילדים` :
-                  familyStatus === "couple" ? (planningKids ? "זוג — מתכננים ילדים" : "זוג") : "יחיד/ה"
-                } />
-                <SummaryRow icon="💰" label="תקציב" value={`עד ${formatPrice(budgetMax)} · ${equity}% הון עצמי`} />
-                <SummaryRow icon="📅" label="כניסה" value={moveTimeline || "—"} />
                 <SummaryRow icon="📍" label="ערים" value={selectedCities.join(", ") || "—"} />
                 <SummaryRow icon="🏠" label="דירה" value={`${rooms}+ חדרים, ${sqmMin}+ מ״ר`} />
                 {mustFeatures.length > 0 && (
@@ -695,13 +749,20 @@ export default function OnboardingPage() {
                 <div className="mt-4 pt-4 border-t border-gray-50">
                   <p className="text-xs text-gray-400 mb-2">תגיות ({selectedTags.length})</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedTags.slice(0, 8).map((t) => (
+                    {selectedTags.slice(0, 10).map((t) => (
                       <span key={t} className="text-xs bg-amber-light text-amber px-2.5 py-1 rounded-full">{t}</span>
                     ))}
-                    {selectedTags.length > 8 && (
-                      <span className="text-xs text-gray-400 py-1">+{selectedTags.length - 8} נוספות</span>
+                    {selectedTags.length > 10 && (
+                      <span className="text-xs text-gray-400 py-1">+{selectedTags.length - 10} נוספות</span>
                     )}
                   </div>
+                </div>
+              )}
+
+              {freeText && (
+                <div className="mt-4 pt-4 border-t border-gray-50 bg-gray-50 rounded-xl p-3">
+                  <p className="text-xs text-gray-400 mb-1">בחופשיות</p>
+                  <p className="text-sm text-navy/70 italic">&ldquo;{freeText}&rdquo;</p>
                 </div>
               )}
             </div>
@@ -715,11 +776,26 @@ export default function OnboardingPage() {
                 <span className="font-semibold">סוכן Agenta</span>
               </div>
               <p className="text-sm text-white/90 leading-relaxed">
-                מצאתי <strong>3 נכסים</strong> שתואמים לפרופיל שלך —
-                הגבוה ביניהם בציון <strong>94%</strong>.
-                ₪285K פחות מהתקציב שלך, גן ממש מתחת לבניין, ופוטנציאל מטבח פתוח.
+                {userName ? `היי ${userName}! ` : ""}יצרתי פרופיל מבוסס <strong>{totalTags + 3} קריטריונים</strong>.
+                אני כבר סורק נכסים שתואמים לדרישות שלך ואעדכן אותך ברגע שאמצא התאמה.
               </p>
-              <p className="text-xs text-white/60 mt-2">מבוסס על {totalTags + 3} קריטריונים</p>
+            </div>
+
+            {/* What happens next */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <p className="text-sm font-semibold text-navy mb-3">מה קורה עכשיו?</p>
+              <div className="space-y-2.5">
+                {[
+                  "ה-AI סורק את כל הנכסים הזמינים ומדרג אותם לפי הפרופיל שלך",
+                  "תקבל התראה על כל התאמה חדשה עם ציון אחוזים והסבר",
+                  "תוכל לקבוע ביקורים, לשמור נכסים, ולהשאיר חוות דעת",
+                ].map((text) => (
+                  <div key={text} className="flex items-start gap-2 text-sm text-gray-600">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

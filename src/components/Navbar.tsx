@@ -25,6 +25,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [user, setUser] = useState<NavUser>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [alerts, setAlerts] = useState<AlertView[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -32,43 +33,42 @@ export default function Navbar() {
   const active = (href: string) =>
     path === href ? "text-amber font-semibold" : "text-navy/70 hover:text-navy font-medium";
 
-  // Load real session + alerts
+  const buildNavUser = (u: { id: string; email?: string | null; user_metadata?: Record<string, string> }): NavUser => {
+    const meta = u.user_metadata ?? {};
+    const firstName = meta.first_name || meta.full_name?.split(" ")[0] || "";
+    const lastName = meta.last_name || meta.full_name?.split(" ").slice(1).join(" ") || "";
+    return {
+      id: u.id,
+      firstName,
+      lastName,
+      email: u.email || "",
+      initials: (firstName[0] || u.email?.[0] || "?").toUpperCase(),
+    };
+  };
+
+  // Load session instantly from cookies, then listen for changes
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        const meta = data.user.user_metadata;
-        const firstName = meta?.first_name || meta?.full_name?.split(" ")[0] || "";
-        const lastName = meta?.last_name || meta?.full_name?.split(" ").slice(1).join(" ") || "";
-        const u = {
-          id: data.user.id,
-          firstName,
-          lastName,
-          email: data.user.email || "",
-          initials: (firstName[0] || data.user.email?.[0] || "?").toUpperCase(),
-        };
-        setUser(u);
-        getUserAlerts(data.user.id, 5).then(setAlerts);
+
+    // getSession reads from local storage/cookies — no network call, no flicker
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const navUser = buildNavUser(session.user);
+        setUser(navUser);
+        getUserAlerts(session.user.id, 5).then(setAlerts);
       }
+      setAuthReady(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        const meta = session.user.user_metadata;
-        const firstName = meta?.first_name || meta?.full_name?.split(" ")[0] || "";
-        const lastName = meta?.last_name || "";
-        const u = {
-          id: session.user.id,
-          firstName, lastName,
-          email: session.user.email || "",
-          initials: (firstName[0] || session.user.email?.[0] || "?").toUpperCase(),
-        };
-        setUser(u);
+        setUser(buildNavUser(session.user));
         getUserAlerts(session.user.id, 5).then(setAlerts);
       } else {
         setUser(null);
         setAlerts([]);
       }
+      setAuthReady(true);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -116,12 +116,12 @@ export default function Navbar() {
         </Link>
 
         {/* ── Nav links + actions — leftmost ── */}
-        <div className="flex items-center gap-6 order-first">
+        <div className={`flex items-center gap-6 order-first transition-opacity duration-150 ${authReady ? "opacity-100" : "opacity-0"}`}>
 
           {user ? (
             /* ═══════════════════ AUTHENTICATED NAV ═══════════════════ */
             <>
-              {/* User avatar + dropdown */}
+              {/* User avatar + name + dropdown */}
               <div className="relative flex items-center gap-1" ref={menuRef}>
                 <button
                   type="button"
@@ -131,6 +131,8 @@ export default function Navbar() {
                 >
                   <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`} />
                 </button>
+
+                <span className="text-sm font-medium text-navy hidden sm:block">{user.firstName}</span>
 
                 <Link
                   href="/profile"
@@ -235,6 +237,8 @@ export default function Navbar() {
 
               {/* Authenticated links */}
               <div className="flex items-center gap-7">
+                <Link href="/profile/settings" className={`text-sm transition-colors ${active("/profile/settings")}`}>הגדרות</Link>
+                <Link href="/profile" className={`text-sm transition-colors ${active("/profile")}`}>פרופיל</Link>
                 <Link href="/sell" className={`text-sm transition-colors ${active("/sell")}`}>מכירה</Link>
                 <Link href="/matches" className={`text-sm transition-colors ${active("/matches")}`}>התאמות</Link>
                 <Link href="/search" className={`text-sm transition-colors ${active("/search")}`}>חיפוש</Link>
@@ -255,9 +259,9 @@ export default function Navbar() {
                 <Link href="/search" className={`flex items-center gap-1.5 text-sm transition-colors ${active("/search")}`}>
                   <Search className="w-3.5 h-3.5" />חיפוש דירות
                 </Link>
-                <Link href="/about" className={`flex items-center gap-1.5 text-sm transition-colors ${active("/about")}`}>
+                <a href="/#about" onClick={(e) => { e.preventDefault(); const el = document.getElementById("about"); if (el) { el.scrollIntoView({ behavior: "smooth" }); } else { window.location.href = "/#about"; } }} className="flex items-center gap-1.5 text-sm text-navy/70 hover:text-navy font-medium transition-colors cursor-pointer">
                   <Info className="w-3.5 h-3.5" />אודות
-                </Link>
+                </a>
                 <a href="/#how-it-works" onClick={(e) => { e.preventDefault(); const el = document.getElementById("how-it-works"); if (el) { el.scrollIntoView({ behavior: "smooth" }); } else { window.location.href = "/#how-it-works"; } }} className="flex items-center gap-1.5 text-sm text-navy/70 hover:text-navy font-medium transition-colors cursor-pointer">
                   <Sparkles className="w-3.5 h-3.5" />איך זה עובד
                 </a>

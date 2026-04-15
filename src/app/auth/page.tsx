@@ -60,12 +60,40 @@ export default function AuthPage() {
   );
 }
 
+// ── Translate Supabase errors to Hebrew ──────────────────────────────────────
+function hebrewError(msg: string): string {
+  const map: [RegExp | string, string][] = [
+    [/email rate limit exceeded/i, "שלחנו יותר מדי מיילים. נסה שוב בעוד מספר דקות."],
+    [/rate limit/i, "יותר מדי ניסיונות. נסה שוב בעוד מספר דקות."],
+    [/invalid api key/i, "שגיאת חיבור לשרת. נסה שוב מאוחר יותר."],
+    [/already registered|already been registered/i, "כתובת האימייל כבר רשומה במערכת. נסה להתחבר."],
+    [/invalid login credentials/i, "אימייל או סיסמה שגויים."],
+    [/email not confirmed/i, "יש לאמת את כתובת האימייל לפני הכניסה. בדוק את תיבת הדואר שלך."],
+    [/user not found/i, "לא נמצא משתמש עם כתובת זו."],
+    [/password.*too short|at least 6/i, "הסיסמה חייבת להכיל לפחות 6 תווים."],
+    [/invalid email/i, "כתובת אימייל לא תקינה."],
+    [/network|fetch|connection/i, "בעיית חיבור לאינטרנט. בדוק את החיבור ונסה שוב."],
+    [/signup.*disabled/i, "ההרשמה מושבתת כרגע. נסה שוב מאוחר יותר."],
+    [/token.*expired|link.*expired/i, "הקישור פג תוקף. נסה לשלוח מייל אימות חדש."],
+    [/database.*error|saving new user/i, "שגיאה בשמירת הנתונים. נסה שוב."],
+    [/provider.*not.*enabled/i, "כניסה עם Google לא זמינה כרגע."],
+  ];
+  for (const [pattern, hebrew] of map) {
+    if (typeof pattern === "string" ? msg.includes(pattern) : pattern.test(msg)) {
+      return hebrew;
+    }
+  }
+  // If already Hebrew, return as is
+  if (/[\u0590-\u05FF]/.test(msg)) return msg;
+  return "אירעה שגיאה. נסה שוב מאוחר יותר.";
+}
+
 // ── Error banner ──────────────────────────────────────────────────────────────
 function ErrorBanner({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-600">
       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-      <span>{message}</span>
+      <span>{hebrewError(message)}</span>
     </div>
   );
 }
@@ -144,20 +172,16 @@ function RegisterForm({ onPostRegister }: { onPostRegister: () => void }) {
         console.warn("Profile upsert warning:", profileError.message);
       }
 
-      // If email confirmation is required, session won't exist yet
+      // If session exists (email confirmation disabled), go straight to onboarding
       onPostRegister();
       if (data.session) {
-        setStep("ready");
-      } else {
-        setStep("confirm_email");
+        router.push("/onboarding");
+        return;
       }
+      // If email confirmation is required, session won't exist yet
+      setStep("confirm_email");
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "שגיאה בהרשמה";
-      if (msg.includes("already registered") || msg.includes("already been registered")) {
-        setError("כתובת האימייל כבר רשומה במערכת. נסה להתחבר.");
-      } else {
-        setError(msg);
-      }
+      setError(e instanceof Error ? e.message : "שגיאה בהרשמה");
     } finally {
       setLoading(false);
     }
@@ -169,7 +193,7 @@ function RegisterForm({ onPostRegister }: { onPostRegister: () => void }) {
       provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback` },
     });
-    if (error) { setError(error.message); setGoogleLoading(false); }
+    if (error) { setError(error.message); setGoogleLoading(false); return; }
   };
 
   const handleFinish = async () => {
@@ -187,18 +211,27 @@ function RegisterForm({ onPostRegister }: { onPostRegister: () => void }) {
     router.push("/onboarding");
   };
 
-  // Poll for email confirmation
+  // Poll for email confirmation — then auto sign-in to get a real session
   useEffect(() => {
     if (step !== "confirm_email") return;
     const interval = setInterval(async () => {
+      // Check if user confirmed email (via the link in another tab)
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email_confirmed_at) {
         clearInterval(interval);
+        // The polling tab has no session — sign in with stored credentials
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+        if (signInError) {
+          console.warn("Auto sign-in after confirmation failed:", signInError.message);
+        }
         setStep("ready");
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [step, supabase]);
+  }, [step, supabase, form.email, form.password]);
 
   if (step === "confirm_email") {
     return (
@@ -229,7 +262,14 @@ function RegisterForm({ onPostRegister }: { onPostRegister: () => void }) {
         </div>
 
         <button
-          onClick={() => setStep("ready")}
+          onClick={async () => {
+            // Try to sign in even without email verification
+            await supabase.auth.signInWithPassword({
+              email: form.email,
+              password: form.password,
+            });
+            setStep("ready");
+          }}
           className="w-full text-gray-400 text-xs hover:text-navy transition-colors py-1">
           דלג על האימות — המשך בכל זאת
         </button>
@@ -370,14 +410,7 @@ function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
       router.push(bp ? "/matches" : "/onboarding");
       router.refresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "שגיאה בכניסה";
-      if (msg.includes("Invalid login credentials")) {
-        setError("אימייל או סיסמה שגויים");
-      } else if (msg.includes("Email not confirmed")) {
-        setError("יש לאמת את כתובת האימייל לפני הכניסה. בדוק את תיבת הדואר שלך.");
-      } else {
-        setError(msg);
-      }
+      setError(e instanceof Error ? e.message : "שגיאה בכניסה");
     } finally {
       setLoading(false);
     }
@@ -389,7 +422,7 @@ function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
       provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback` },
     });
-    if (error) { setError(error.message); setGoogleLoading(false); }
+    if (error) { setError(error.message); setGoogleLoading(false); return; }
   };
 
   const handleForgotPassword = async () => {
@@ -400,6 +433,7 @@ function LoginForm({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
     });
     setResetLoading(false);
     if (error) { setError(error.message); return; }
+    setError(null);
     setResetSent(true);
   };
 
